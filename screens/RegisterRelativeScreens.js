@@ -1,27 +1,31 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { User, Smartphone, Lock, ChevronLeft, Users, EyeOff, RotateCcw, Heart } from 'lucide-react-native';
 import CustomInput from '../components/CustomInput';
 import { COLORS } from '../theme/color';
-
 import { useRouter } from 'expo-router';
 
 const RegisterRelativeScreens = () => {
   const router = useRouter();
+
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        
+        <View style={styles.headerRow}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.replace('/')}
+          >
+            <ChevronLeft size={28} color={COLORS.textDark} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitleText}>Đăng ký</Text>
+          <View style={{ width: 28 }} />
+        </View>
 
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
-          <ChevronLeft size={28} color={COLORS.textDark} />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>Đăng ký</Text>
-
-        {/* Biểu tượng Trái tim/Người thân trung tâm */}
         <View style={styles.headerIcon}>
           <View style={[styles.iconCircle, { backgroundColor: '#FFF0F0' }]}>
             <Heart size={40} color="#FF5252" />
@@ -73,10 +77,23 @@ const RegisterRelativeScreens = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { padding: 25, paddingTop: 40 },
-  backButton: { marginBottom: 10 },
-  backText: { fontSize: 24, fontWeight: 'bold', color: COLORS.textDark },
-  headerTitle: { textAlign: 'center', fontSize: 18, fontWeight: 'bold', marginTop: -30, marginBottom: 30 },
+  scrollContent: { padding: 25, paddingTop: 50 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 10,
+    marginLeft: -10,
+    zIndex: 999,
+  },
+  headerTitleText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.textDark,
+  },
   headerIcon: { alignItems: 'center', marginBottom: 20 },
   iconCircle: { 
     width: 90, height: 90, 

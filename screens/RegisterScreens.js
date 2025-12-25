@@ -3,12 +3,12 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, KeyboardAvoidingV
 import { User, Smartphone, Lock, ChevronLeft, ShieldCheck, Eye, EyeOff, RotateCcw } from 'lucide-react-native';
 import CustomInput from '../components/CustomInput';
 import { COLORS } from '../theme/color';
-
 import { useRouter } from 'expo-router';
 
 const RegisterScreens = () => {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -16,12 +16,17 @@ const RegisterScreens = () => {
     >
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
-        {/* Nút Back */}
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
-          <ChevronLeft size={28} color={COLORS.textDark} />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>Đăng ký</Text>
+        {/* Header ngang để tránh bị đè vùng bấm */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.replace('/')}
+          >
+            <ChevronLeft size={28} color={COLORS.textDark} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitleText}>Đăng ký</Text>
+          <View style={{ width: 28 }} /> 
+        </View>
 
         {/* Biểu tượng Khiên bảo mật trung tâm */}
         <View style={styles.headerIcon}>
@@ -35,7 +40,6 @@ const RegisterScreens = () => {
           Điền thông tin xác thực quân nhân để tạo tài khoản quản lý thăm nuôi.
         </Text>
 
-        {/* Form nhập liệu */}
         <Text style={styles.label}>Họ và tên</Text>
         <CustomInput icon={User} placeholder="Nguyễn Văn A" />
 
@@ -61,12 +65,10 @@ const RegisterScreens = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Nút Đăng ký */}
         <TouchableOpacity style={styles.registerButton} activeOpacity={0.8}>
           <Text style={styles.registerButtonText}>Đăng ký tài khoản</Text>
         </TouchableOpacity>
 
-        {/* Link chuyển sang Đăng nhập */}
         <TouchableOpacity style={styles.footerLink} onPress={() => router.push('/login')}>
           <Text style={styles.footerText}>Đã có tài khoản? <Text style={styles.link}>Đăng nhập</Text></Text>
         </TouchableOpacity>
@@ -78,10 +80,23 @@ const RegisterScreens = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { padding: 25, paddingTop: 40 },
-  backButton: { marginBottom: 10 },
-  backText: { fontSize: 24, fontWeight: 'bold', color: COLORS.textDark },
-  headerTitle: { textAlign: 'center', fontSize: 18, fontWeight: 'bold', marginTop: -30, marginBottom: 30 },
+  scrollContent: { padding: 25, paddingTop: 50 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 10,
+    marginLeft: -10,
+    zIndex: 999,
+  },
+  headerTitleText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.textDark,
+  },
   headerIcon: { alignItems: 'center', marginBottom: 20 },
   iconCircle: { 
     width: 90, height: 90, backgroundColor: '#E8F0FE', 
@@ -97,7 +112,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginTop: 30
   },
   registerButtonText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
-  footerLink: { marginTop: 20, alignItems: 'center' },
+  footerLink: { marginTop: 20, alignItems: 'center', marginBottom: 20 },
   footerText: { color: COLORS.textGrey, fontSize: 14 },
   link: { color: COLORS.primary, fontWeight: 'bold' }
 });

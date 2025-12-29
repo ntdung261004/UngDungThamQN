@@ -1,6 +1,6 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { User, Smartphone, Lock, ChevronLeft, Users, EyeOff, RotateCcw, Heart } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { User, Smartphone, Lock, ChevronLeft, Heart, Hash, MapPin, RotateCcw } from 'lucide-react-native';
 import CustomInput from '../components/CustomInput';
 import { COLORS } from '../theme/color';
 import { useRouter } from 'expo-router';
@@ -8,61 +8,103 @@ import { useRouter } from 'expo-router';
 const RegisterRelativeScreens = () => {
   const router = useRouter();
 
+  // State quản lý dữ liệu nhập
+  const [unitCode, setUnitCode] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [unitPath, setUnitPath] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleRegister = () => {
+    // Kiểm tra dữ liệu
+    if (!unitCode || !fullName || !phone || !unitPath || !password) {
+      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Lỗi", "Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    // Chuyển sang OTP
+    router.push({
+      pathname: '/otp_verification',
+      params: { phone: phone, type: 'register' }
+    });
+  };
+
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         
         <View style={styles.headerRow}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => router.replace('/')}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ChevronLeft size={28} color={COLORS.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitleText}>Đăng ký</Text>
+          <Text style={styles.headerTitleText}>Đăng ký Thân nhân</Text>
           <View style={{ width: 28 }} />
         </View>
 
-        <View style={styles.headerIcon}>
-          <View style={[styles.iconCircle, { backgroundColor: '#FFF0F0' }]}>
-            <Heart size={40} color="#FF5252" />
-          </View>
-        </View>
-
-        <Text style={styles.title}>Đăng ký Thân nhân</Text>
-        <Text style={styles.subtitle}>
-          Tạo tài khoản để theo dõi tình hình công tác và đăng ký thăm con em tại đơn vị.
-        </Text>
+        <Text style={styles.label}>Mã định danh đơn vị</Text>
+        <CustomInput 
+          icon={Hash} 
+          placeholder="Dán mã do con em cấp" 
+          autoCapitalize="characters"
+          value={unitCode}
+          onChangeText={setUnitCode}
+        />
 
         <Text style={styles.label}>Họ và tên người thân</Text>
-        <CustomInput icon={User} placeholder="Nguyễn Văn B" />
+        <CustomInput 
+          icon={User} 
+          placeholder="Nhập họ tên của bạn" 
+          value={fullName}
+          onChangeText={setFullName}
+        />
 
         <Text style={styles.label}>Số điện thoại</Text>
-        <CustomInput icon={Smartphone} placeholder="09xx xxx xxx" />
+        <CustomInput 
+          icon={Smartphone} 
+          placeholder="Dùng làm tài khoản đăng nhập" 
+          keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
+        />
 
-        <Text style={styles.label}>Mã số quân nhân (Con em)</Text>
-        <CustomInput icon={Users} placeholder="Nhập mã số để liên kết" />
+        <Text style={styles.label}>Đơn vị con em (Unit Path)</Text>
+        <CustomInput 
+          icon={MapPin} 
+          placeholder="Ví dụ: b1-c1-d4-e5" 
+          autoCapitalize="none"
+          value={unitPath}
+          onChangeText={setUnitPath}
+        />
 
         <Text style={styles.label}>Mật khẩu</Text>
-        <View style={styles.inputWrapper}>
-          <CustomInput icon={Lock} placeholder="........" secureTextEntry={true} />
-          <TouchableOpacity style={styles.eyeIcon}>
-            <EyeOff size={20} color={COLORS.textGrey} />
-          </TouchableOpacity>
-        </View>
+        <CustomInput 
+          icon={Lock} 
+          placeholder="........" 
+          secureTextEntry={true} 
+          value={password}
+          onChangeText={setPassword}
+        />
 
         <Text style={styles.label}>Nhập lại mật khẩu</Text>
-        <View style={styles.inputWrapper}>
-          <CustomInput icon={RotateCcw} placeholder="........" secureTextEntry={true} />
-          <TouchableOpacity style={styles.eyeIcon}>
-            <EyeOff size={20} color={COLORS.textGrey} />
-          </TouchableOpacity>
-        </View>
+        <CustomInput 
+          icon={RotateCcw} 
+          placeholder="Xác nhận mật khẩu" 
+          secureTextEntry={true} 
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+        />
 
-        <TouchableOpacity style={[styles.registerButton, { backgroundColor: '#FF5252' }]} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={[styles.registerButton, { backgroundColor: '#FF5252' }]} 
+          activeOpacity={0.8}
+          onPress={handleRegister}
+        >
           <Text style={styles.registerButtonText}>Đăng ký & Kết nối</Text>
         </TouchableOpacity>
 
@@ -78,38 +120,13 @@ const RegisterRelativeScreens = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: { padding: 25, paddingTop: 50 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  backButton: {
-    padding: 10,
-    marginLeft: -10,
-    zIndex: 999,
-  },
-  headerTitleText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.textDark,
-  },
-  headerIcon: { alignItems: 'center', marginBottom: 20 },
-  iconCircle: { 
-    width: 90, height: 90, 
-    borderRadius: 20, justifyContent: 'center', alignItems: 'center' 
-  },
-  title: { fontSize: 26, fontWeight: 'bold', textAlign: 'center', color: COLORS.textDark, marginBottom: 10 },
-  subtitle: { fontSize: 14, textAlign: 'center', color: COLORS.textGrey, marginBottom: 30, paddingHorizontal: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  backButton: { padding: 10, marginLeft: -10 },
+  headerTitleText: { fontSize: 18, fontWeight: 'bold', color: COLORS.textDark },
   label: { fontSize: 15, fontWeight: '600', color: COLORS.textDark, marginBottom: 8 },
-  inputWrapper: { position: 'relative' },
-  eyeIcon: { position: 'absolute', right: 15, top: 18 },
-  registerButton: {
-    height: 55, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center', marginTop: 30
-  },
+  registerButton: { height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   registerButtonText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
-  footerLink: { marginTop: 20, marginBottom: 30, alignItems: 'center' },
+  footerLink: { marginTop: 20, marginBottom: 40, alignItems: 'center' },
   footerText: { color: COLORS.textGrey, fontSize: 14 },
   link: { fontWeight: 'bold' }
 });

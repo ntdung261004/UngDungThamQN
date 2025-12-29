@@ -8,8 +8,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 const LoginScreens = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  
   const router = useRouter();
-  const { role } = useLocalSearchParams(); // Nhận vai trò từ Welcome
+  const { role } = useLocalSearchParams(); 
 
   const handleRegisterNavigation = () => {
     if (role === 'canbo') {
@@ -21,21 +22,21 @@ const LoginScreens = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Quay lại Welcome */}
       <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
         <ChevronLeft size={28} color={COLORS.textDark} />
       </TouchableOpacity>
 
       <Text style={styles.title}>Đăng nhập</Text>
       <Text style={styles.subtitle}>
-        Đang đăng nhập với vai trò: {role === 'canbo' ? 'Cán bộ' : 'Thân nhân'}
+        Vai trò: {role === 'canbo' ? 'Cán bộ quản lý' : 'Thân nhân quân nhân'}
       </Text>
 
       <View style={styles.form}>
         <Text style={styles.label}>Số điện thoại</Text>
         <CustomInput 
           icon={Smartphone} 
-          placeholder="09xx xxx xxx" 
+          placeholder="Số điện thoại của bạn" 
+          keyboardType="phone-pad"
           value={phone}
           onChangeText={setPhone}
         />
@@ -48,8 +49,10 @@ const LoginScreens = () => {
           value={password}
           onChangeText={setPassword}
         />
-
-        <TouchableOpacity style={styles.forgotPass}>
+        <TouchableOpacity 
+          style={styles.forgotPass} 
+          onPress={() => router.push('/forgot_password')}
+        >
           <Text style={styles.forgotText}>Quên mật khẩu?</Text>
         </TouchableOpacity>
 
@@ -71,21 +74,14 @@ const LoginScreens = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: 25, paddingTop: 60 },
+  forgotPass: { alignItems: 'flex-end', marginBottom: 30 },
+  forgotText: { color: COLORS.primary, fontSize: 14, fontWeight: '500' },
   backButton: { marginBottom: 20, marginLeft: -10, padding: 5 },
   title: { fontSize: 28, fontWeight: 'bold', color: COLORS.textDark, marginBottom: 8 },
   subtitle: { fontSize: 15, color: COLORS.textGrey, marginBottom: 40 },
   form: { width: '100%' },
   label: { fontSize: 14, fontWeight: '600', color: COLORS.textDark, marginBottom: 8 },
-  forgotPass: { alignItems: 'flex-end', marginBottom: 30 },
-  forgotText: { color: COLORS.primary, fontSize: 14, fontWeight: '500' },
-  loginButton: {
-    backgroundColor: COLORS.primary,
-    height: 55,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 3,
-  },
+  loginButton: { backgroundColor: COLORS.primary, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
   loginText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
   footerLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 25 },
   noAccount: { color: COLORS.textGrey, fontSize: 14 },

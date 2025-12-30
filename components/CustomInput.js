@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
-import { COLORS } from '../theme/color';
+import { COLORS } from '../constants/theme';
 
 const CustomInput = ({ icon: Icon, placeholder, value, onChangeText, secureTextEntry }) => {
   return (

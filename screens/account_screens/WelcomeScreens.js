@@ -1,8 +1,7 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
-import { Users, ShieldCheck, ChevronRight, Info } from 'lucide-react-native';
-import { COLORS } from '../theme/color';
 import { useRouter } from 'expo-router';
+import { ChevronRight, Info, ShieldCheck, Users } from 'lucide-react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { COLORS } from '../../constants/theme';
 
 const WelcomeScreens = () => {
   const router = useRouter();
@@ -25,7 +24,7 @@ const WelcomeScreens = () => {
       <View style={styles.content}>
         <View style={styles.imageContainer}>
           <Image 
-            source={require('../assets/app_icon.png')} 
+            source={require('../../assets/app_icon.png')} 
             style={styles.mainIcon}
             resizeMode="contain"
           />

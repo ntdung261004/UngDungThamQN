@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Smartphone, ChevronLeft } from 'lucide-react-native';
-import CustomInput from '../components/CustomInput';
-import { COLORS } from '../theme/color';
 import { useRouter } from 'expo-router';
+import { ChevronLeft, Smartphone } from 'lucide-react-native';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import CustomInput from '../../components/CustomInput';
+import { COLORS } from '../../constants/theme';
 
 const ForgotPasswordScreen = () => {
   const [phone, setPhone] = useState('');

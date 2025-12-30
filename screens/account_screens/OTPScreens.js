@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Smartphone } from 'lucide-react-native';
-import CustomInput from '../components/CustomInput';
-import { COLORS } from '../theme/color';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import CustomInput from '../../components/CustomInput';
+import { COLORS } from '../../constants/theme';
 
 const OTPScreen = () => {
   const [otp, setOtp] = useState('');

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { Lock, RotateCcw, ChevronLeft } from 'lucide-react-native';
-import CustomInput from '../components/CustomInput';
-import { COLORS } from '../theme/color';
 import { useRouter } from 'expo-router';
+import { ChevronLeft, Lock, RotateCcw } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import CustomInput from '../../components/CustomInput';
+import { COLORS } from '../../constants/theme';
 
 const ResetPasswordScreen = () => {
   const [newPass, setNewPass] = useState('');

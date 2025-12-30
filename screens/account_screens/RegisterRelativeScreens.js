@@ -1,32 +1,25 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { User, Smartphone, Lock, ChevronLeft, ShieldCheck, Eye, EyeOff, RotateCcw, Hash, MapPin } from 'lucide-react-native';
-import CustomInput from '../components/CustomInput';
-import { COLORS } from '../theme/color';
 import { useRouter } from 'expo-router';
+import { ChevronLeft, Hash, Lock, MapPin, RotateCcw, Smartphone, User } from 'lucide-react-native';
+import { useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import CustomInput from '../../components/CustomInput';
+import { COLORS } from '../../constants/theme';
 
-const RegisterScreens = () => {
+const RegisterRelativeScreens = () => {
   const router = useRouter();
-  const [showPassword, setShowPassword] = useState(false);
-  
+
   // State quản lý dữ liệu nhập
   const [unitCode, setUnitCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [unitPath, setUnitPath] = useState('');
-  const [token, setToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleRegisterRequest = () => {
-    // Kiểm tra các trường bắt buộc
-    if (!unitCode || !fullName || !phone || !unitPath || !token || !password) {
-      Alert.alert("Lỗi", "Vui lòng điền đầy đủ tất cả thông tin.");
-      return;
-    }
-
-    if (phone.length < 10) {
-      Alert.alert("Lỗi", "Số điện thoại không hợp lệ.");
+  const handleRegister = () => {
+    // Kiểm tra dữ liệu
+    if (!unitCode || !fullName || !phone || !unitPath || !password) {
+      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
       return;
     }
 
@@ -35,7 +28,7 @@ const RegisterScreens = () => {
       return;
     }
 
-    // Chuyển sang màn hình OTP
+    // Chuyển sang OTP
     router.push({
       pathname: '/otp_verification',
       params: { phone: phone, type: 'register' }
@@ -50,23 +43,23 @@ const RegisterScreens = () => {
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ChevronLeft size={28} color={COLORS.textDark} />
           </TouchableOpacity>
-          <Text style={styles.headerTitleText}>Đăng ký Cán bộ</Text>
-          <View style={{ width: 28 }} /> 
+          <Text style={styles.headerTitleText}>Đăng ký Thân nhân</Text>
+          <View style={{ width: 28 }} />
         </View>
 
         <Text style={styles.label}>Mã định danh đơn vị</Text>
         <CustomInput 
           icon={Hash} 
-          placeholder="Dán mã do chỉ huy cấp" 
+          placeholder="Dán mã do con em cấp" 
           autoCapitalize="characters"
           value={unitCode}
           onChangeText={setUnitCode}
         />
 
-        <Text style={styles.label}>Họ và tên</Text>
+        <Text style={styles.label}>Họ và tên người thân</Text>
         <CustomInput 
           icon={User} 
-          placeholder="Họ và tên cán bộ" 
+          placeholder="Nhập họ tên của bạn" 
           value={fullName}
           onChangeText={setFullName}
         />
@@ -74,42 +67,29 @@ const RegisterScreens = () => {
         <Text style={styles.label}>Số điện thoại</Text>
         <CustomInput 
           icon={Smartphone} 
-          placeholder="Dùng để đăng nhập" 
+          placeholder="Dùng làm tài khoản đăng nhập" 
           keyboardType="phone-pad"
           value={phone}
           onChangeText={setPhone}
         />
 
-        <Text style={styles.label}>Đường dẫn đơn vị (Unit Path)</Text>
+        <Text style={styles.label}>Đơn vị con em (Unit Path)</Text>
         <CustomInput 
           icon={MapPin} 
-          placeholder="Ví dụ: b4-c10-d6-e5-f5-qk7" 
+          placeholder="Ví dụ: b1-c1-d4-e5" 
+          autoCapitalize="none"
           value={unitPath}
           onChangeText={setUnitPath}
-          autoCapitalize="none"
-        />
-
-        <Text style={styles.label}>Mã mời xác thực (Token)</Text>
-        <CustomInput 
-          icon={ShieldCheck} 
-          placeholder="Mã phê duyệt tài khoản" 
-          value={token}
-          onChangeText={setToken}
         />
 
         <Text style={styles.label}>Mật khẩu</Text>
-        <View style={styles.inputWrapper}>
-          <CustomInput 
-            icon={Lock} 
-            placeholder="........" 
-            secureTextEntry={!showPassword} 
-            value={password}
-            onChangeText={setPassword}
-          />
-          <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
-            {showPassword ? <Eye size={20} color={COLORS.textGrey} /> : <EyeOff size={20} color={COLORS.textGrey} />}
-          </TouchableOpacity>
-        </View>
+        <CustomInput 
+          icon={Lock} 
+          placeholder="........" 
+          secureTextEntry={true} 
+          value={password}
+          onChangeText={setPassword}
+        />
 
         <Text style={styles.label}>Nhập lại mật khẩu</Text>
         <CustomInput 
@@ -121,15 +101,15 @@ const RegisterScreens = () => {
         />
 
         <TouchableOpacity 
-          style={styles.registerButton} 
+          style={[styles.registerButton, { backgroundColor: '#FF5252' }]} 
           activeOpacity={0.8}
-          onPress={handleRegisterRequest}
+          onPress={handleRegister}
         >
-          <Text style={styles.registerButtonText}>Gửi yêu cầu phê duyệt</Text>
+          <Text style={styles.registerButtonText}>Đăng ký & Kết nối</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.footerLink} onPress={() => router.push('/login')}>
-          <Text style={styles.footerText}>Đã có tài khoản? <Text style={styles.link}>Đăng nhập</Text></Text>
+          <Text style={styles.footerText}>Đã có tài khoản? <Text style={[styles.link, {color: '#FF5252'}]}>Đăng nhập</Text></Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -144,13 +124,11 @@ const styles = StyleSheet.create({
   backButton: { padding: 10, marginLeft: -10 },
   headerTitleText: { fontSize: 18, fontWeight: 'bold', color: COLORS.textDark },
   label: { fontSize: 15, fontWeight: '600', color: COLORS.textDark, marginBottom: 8 },
-  inputWrapper: { position: 'relative' },
-  eyeIcon: { position: 'absolute', right: 15, top: 18 },
-  registerButton: { backgroundColor: COLORS.primary, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
+  registerButton: { height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   registerButtonText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
-  footerLink: { marginTop: 20, alignItems: 'center', marginBottom: 40 },
+  footerLink: { marginTop: 20, marginBottom: 40, alignItems: 'center' },
   footerText: { color: COLORS.textGrey, fontSize: 14 },
-  link: { color: COLORS.primary, fontWeight: 'bold' }
+  link: { fontWeight: 'bold' }
 });
 
-export default RegisterScreens;
+export default RegisterRelativeScreens;

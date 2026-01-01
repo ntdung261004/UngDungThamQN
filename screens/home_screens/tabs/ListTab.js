@@ -4,13 +4,19 @@ import { COLORS } from '../../../constants/theme';
 import OfficerList from './sub_tabs/OfficerList';
 
 export default function ListTab({ user }) {
+  // Nếu là Admin thì mặc định mở 'Officers', nếu không thì mở 'Soldiers'
+  const [subTab, setSubTab] = useState(user?.isAdmin ? 'Officers' : 'Soldiers');
 
-  const [subTab, setSubTab] = useState('Officers');
   const renderSubContent = () => {
     switch (subTab) {
-      case 'Soldiers': return <View style={styles.page}><Text>Trang: Danh sách Chiến sĩ</Text></View>;
-      case 'Relatives': return <View style={styles.page}><Text>Trang: Thân nhân đăng ký</Text></View>;
-      case 'Officers': return <OfficerList currentUser={user} />;
+      case 'Soldiers': 
+        return <View style={styles.page}><Text style={styles.emptyText}>Trang: Danh sách Chiến sĩ</Text></View>;
+      case 'Relatives': 
+        return <View style={styles.page}><Text style={styles.emptyText}>Trang: Thân nhân đăng ký</Text></View>;
+      case 'Officers': 
+        return <OfficerList currentUser={user} />;
+      default:
+        return null;
     }
   };
 
@@ -32,12 +38,15 @@ export default function ListTab({ user }) {
           <Text style={[styles.subTabText, subTab === 'Relatives' && styles.activeSubTabText]}>Thân nhân</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.subTab, subTab === 'Officers' && styles.activeSubTab]} 
-          onPress={() => setSubTab('Officers')}
-        >
-          <Text style={[styles.subTabText, subTab === 'Officers' && styles.activeSubTabText]}>Cán bộ</Text>
-        </TouchableOpacity>
+        {/* CHỈ HIỂN THỊ MỤC CÁN BỘ NẾU LÀ ADMIN */}
+        {user?.isAdmin && (
+          <TouchableOpacity 
+            style={[styles.subTab, subTab === 'Officers' && styles.activeSubTab]} 
+            onPress={() => setSubTab('Officers')}
+          >
+            <Text style={[styles.subTabText, subTab === 'Officers' && styles.activeSubTabText]}>Cán bộ</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.content}>
@@ -49,11 +58,19 @@ export default function ListTab({ user }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
-  subTabBar: { flexDirection: 'row', backgroundColor: '#F4F4F4', margin: 15, borderRadius: 10, padding: 4 },
-  subTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  activeSubTab: { backgroundColor: '#FFF', elevation: 2 },
-  subTabText: { fontSize: 13, color: '#666', fontWeight: '600' },
+  subTabBar: { 
+    flexDirection: 'row', 
+    backgroundColor: '#F4F4F4', 
+    marginHorizontal: 15, 
+    marginVertical: 10, 
+    borderRadius: 12, 
+    padding: 4 
+  },
+  subTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  activeSubTab: { backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2 },
+  subTabText: { fontSize: 13, color: '#888', fontWeight: '600' },
   activeSubTabText: { color: COLORS.primary },
-  content: { flex: 1, paddingHorizontal: 20 },
-  page: { flex: 1, justifyContent: 'center', alignItems: 'center' }
+  content: { flex: 1 },
+  page: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { color: '#999', fontSize: 14 }
 });

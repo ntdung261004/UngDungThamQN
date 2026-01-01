@@ -4,11 +4,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// --- API ĐĂNG KÝ ---
+// --- API ĐĂNG KÝ (Đã khôi phục đầy đủ) ---
 router.post('/register', async (req, res) => {
     try {
         const { fullName, phone, password, role, rootCode, unitCode, unitPath } = req.body;
-
         let user = await User.findOne({ phone, rootCode });
         if (user) return res.status(400).json({ message: "Số điện thoại đã được đăng ký trong đơn vị này!" });
 
@@ -20,20 +19,18 @@ router.post('/register', async (req, res) => {
 
         const salt = await bcrypt.genSalt(10);
         newUser.password = await bcrypt.hash(password, salt);
-
         await newUser.save();
         res.status(200).json({ message: "Đăng ký thành công! Vui lòng chờ phê duyệt." });
     } catch (err) {
-        console.error(err);
+        console.error("Lỗi đăng ký:", err);
         res.status(500).json({ message: "Lỗi hệ thống đăng ký" });
     }
 });
 
-// --- API ĐĂNG NHẬP ---
+// --- API ĐĂNG NHẬP (Đã tối ưu trả về Profile) ---
 router.post('/login', async (req, res) => {
     try {
         const { rootCode, phone, password } = req.body;
-
         const user = await User.findOne({ rootCode, phone });
         if (!user) return res.status(400).json({ message: "Mã đơn vị hoặc SĐT không chính xác!" });
 
@@ -41,20 +38,22 @@ router.post('/login', async (req, res) => {
         if (!isMatch) return res.status(400).json({ message: "Mật khẩu không chính xác!" });
 
         const payload = { user: { id: user.id } };
-        jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' }, (err, token) => {
+        jwt.sign(payload, process.env.JWT_SECRET || "secret", { expiresIn: '7d' }, (err, token) => {
             if (err) throw err;
             res.json({
-                message: "Đăng nhập thành công!",
                 token,
                 user: {
-                    id: user._id, // Trả về id để Frontend lưu vào máy
+                    id: user._id,
                     fullName: user.fullName,
                     role: user.role,
                     rootCode: user.rootCode,
+                    unitCode: user.unitCode,
+                    unitPath: user.unitPath,
+                    rank: user.rank || "",
+                    position: user.position || "",
                     isAdmin: user.isAdmin,
                     isApproved: user.isApproved,
-                    isProfileUpdated: user.isProfileUpdated,
-                    unitCode: user.unitCode
+                    isProfileUpdated: user.isProfileUpdated
                 }
             });
         });
@@ -63,20 +62,12 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// --- API CẬP NHẬT HỒ SƠ ---
+// --- API CẬP NHẬT HỒ SƠ (Đã khôi phục) ---
 router.put('/update-profile', async (req, res) => {
     try {
         const { userId, fullName, rank, position, unitCode } = req.body;
-
-        if (!userId) {
-            return res.status(400).json({ message: "Thiếu ID người dùng" });
-        }
-
         const user = await User.findById(userId);
-        
-        if (!user) {
-            return res.status(404).json({ message: "Không tìm thấy người dùng" });
-        }
+        if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng" });
 
         user.fullName = fullName || user.fullName;
         user.rank = rank || "";
@@ -85,108 +76,78 @@ router.put('/update-profile', async (req, res) => {
         user.isProfileUpdated = true;
 
         await user.save();
-
-        res.json({
-            message: "Cập nhật hồ sơ thành công!",
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                role: user.role,
-                rootCode: user.rootCode,
-                isAdmin: user.isAdmin,
-                isApproved: user.isApproved,
-                isProfileUpdated: user.isProfileUpdated,
-                unitCode: user.unitCode,
-                rank: user.rank,
-                position: user.position
-            }
-        });
+        res.json({ message: "Cập nhật thành công!", user });
     } catch (err) {
-        console.error("Lỗi Update Profile:", err);
-        res.status(500).json({ message: "Lỗi hệ thống khi cập nhật hồ sơ" });
+        res.status(500).json({ message: "Lỗi cập nhật hồ sơ" });
     }
 });
 
-// --- API LẤY SỐ LIỆU TỔNG QUAN THEO PHÂN CẤP ---
-router.get('/overview-stats/:userId', async (req, res) => {
-    try {
-        const currentUser = await User.findById(req.params.userId);
-        if (!currentUser) return res.status(404).json({ message: "Không tìm thấy user" });
-
-        // Tạo filter dựa trên phân cấp: Tìm tất cả user có unitPath bắt đầu bằng path của cán bộ này
-        // Ví dụ: cán bộ d6 sẽ tìm các path "d6", "d6-e1", "d6-e1-c1"...
-        const hierarchyFilter = { 
-            rootCode: currentUser.rootCode,
-            unitPath: new RegExp(`^${currentUser.unitPath}`) 
-        };
-
-        // 1. Tổng số cán bộ trong phân cấp
-        const totalOfficers = await User.countDocuments({ 
-            ...hierarchyFilter, 
-            role: 'canbo' 
-        });
-
-        // 2. Tổng số thân nhân đã đăng ký
-        const totalRelatives = await User.countDocuments({ 
-            ...hierarchyFilter, 
-            role: 'relative' 
-        });
-
-        // 3. Giả lập số lượng chiến sĩ (Vì hiện tại bạn chưa làm bảng Soldier)
-        // Sau này khi có bảng Soldiers, bạn sẽ count theo unitPath tương tự
-        const totalSoldiers = 150; // Tạm thời để số cứng hoặc logic giả lập
-
-        res.json({
-            totalOfficers,
-            totalRelatives,
-            totalSoldiers,
-            pendingApprovals: 5 // Giả lập số mục mới cần xử lý
-        });
-    } catch (err) {
-        res.status(500).json({ message: "Lỗi lấy số liệu tổng quan" });
-    }
-});
-
-// --- LẤY DANH SÁCH CÁN BỘ THEO PHÂN CẤP ---
 router.get('/pending-officers/:userId', async (req, res) => {
     try {
         const currentUser = await User.findById(req.params.userId);
         if (!currentUser) return res.status(404).json({ message: "Không tìm thấy user" });
 
-        // Tìm các cán bộ cùng rootCode, có unitPath nằm trong phân cấp và chưa được duyệt
-        const filter = {
-            rootCode: currentUser.rootCode,
-            role: 'canbo',
-            _id: { $ne: currentUser._id }, // Không hiện chính mình
-            unitPath: new RegExp(`^${currentUser.unitPath}`)
+        let filter = { 
+            rootCode: currentUser.rootCode, 
+            role: 'canbo', 
+            _id: { $ne: currentUser._id } 
         };
+
+        // Nếu KHÔNG PHẢI admin tối cao của rootCode, thì mới lọc theo nhánh đơn vị
+        if (!currentUser.isAdmin) {
+            filter.unitPath = new RegExp(currentUser.unitPath, 'i'); 
+        }
 
         const pending = await User.find({ ...filter, isApproved: false }).sort({ createdAt: -1 });
         const approved = await User.find({ ...filter, isApproved: true }).sort({ createdAt: -1 });
 
         res.json({ pending, approved });
-    } catch (err) {
-        res.status(500).json({ message: "Lỗi lấy danh sách" });
-    }
+    } catch (err) { res.status(500).json({ message: "Lỗi lấy danh sách" }); }
 });
 
-// --- PHÊ DUYỆT CÁN BỘ ---
+// --- API PHÊ DUYỆT ---
 router.put('/approve-officer/:id', async (req, res) => {
     try {
-        const user = await User.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true });
-        res.json({ message: "Đã phê duyệt cán bộ", user });
-    } catch (err) {
-        res.status(500).json({ message: "Lỗi phê duyệt" });
-    }
+        await User.findByIdAndUpdate(req.params.id, { isApproved: true });
+        res.json({ message: "Thành công" });
+    } catch (err) { res.status(500).json({ message: "Lỗi" }); }
 });
 
-// --- XÓA/TỪ CHỐI CÁN BỘ ---
-router.delete('/delete-officer/:id', async (req, res) => {
+// --- API UPDATE PROFILE ---
+router.put('/update-profile', async (req, res) => {
     try {
-        await User.findByIdAndDelete(req.params.id);
-        res.json({ message: "Đã xóa tài khoản cán bộ" });
+        const { userId, fullName, rank, position, unitCode } = req.body;
+        const user = await User.findByIdAndUpdate(userId, {
+            fullName, rank, position, unitCode, isProfileUpdated: true
+        }, { new: true });
+        res.json({ message: "Cập nhật thành công", user: { ...user._doc, id: user._id } });
+    } catch (err) { res.status(500).json({ message: "Lỗi cập nhật" }); }
+});
+
+// --- API SỐ LIỆU TỔNG QUAN ---
+router.get('/overview-stats/:userId', async (req, res) => {
+    try {
+        const currentUser = await User.findById(req.params.userId);
+        if (!currentUser) return res.status(404).json({ message: "Không tìm thấy user" });
+
+        // Logic Phả hệ: Admin rootCode thấy tất cả. Cán bộ thường thấy theo nhánh unitPath.
+        let hierarchyFilter = { rootCode: currentUser.rootCode };
+        if (!currentUser.isAdmin) {
+            hierarchyFilter.unitPath = new RegExp(currentUser.unitPath, 'i');
+        }
+
+        const totalOfficers = await User.countDocuments({ ...hierarchyFilter, role: 'canbo', isApproved: true });
+        const totalRelatives = await User.countDocuments({ ...hierarchyFilter, role: 'relative' });
+        const pendingApprovals = await User.countDocuments({ ...hierarchyFilter, role: 'canbo', isApproved: false });
+
+        res.json({
+            totalOfficers,
+            totalRelatives,
+            totalSoldiers: 120, // Tạm thời giả lập
+            pendingApprovals
+        });
     } catch (err) {
-        res.status(500).json({ message: "Lỗi khi xóa" });
+        res.status(500).json({ message: "Lỗi lấy số liệu" });
     }
 });
 

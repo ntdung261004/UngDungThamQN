@@ -2,22 +2,24 @@ const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
-  phone: { type: String, required: true }, // SĐT có thể trùng ở các Root khác nhau, nhưng nên duy nhất trong cùng 1 Root
+  phone: { type: String, required: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['canbo', 'relative'], required: true },
   
-  // MÃ KHÁCH HÀNG (Ví dụ: D6E5F5QK7) - Chìa khóa để vào đúng bản database của đơn vị đó
+  // Các trường định danh đơn vị
   rootCode: { type: String, required: true }, 
-  
-  // MÃ ĐƠN VỊ QUẢN LÝ (Cấp con của Root, ví dụ: c10, b5-c10)
+  unitCode: { type: String, required: true }, // Tên đơn vị (VD: Trung đội 5)
   unitPath: { type: String, required: true }, 
-  
+
+  // QUAN TRỌNG: Phải khai báo ở đây để MongoDB chấp nhận dữ liệu
+  isAdmin: { type: Boolean, default: false }, 
+  isApproved: { type: Boolean, default: false }, 
+
   isVerified: { type: Boolean, default: false },
-  isApproved: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 
-// Đảm bảo SĐT chỉ là duy nhất bên trong 1 Root Code (Mã đơn vị gốc)
+// Đảm bảo SĐT duy nhất trong cùng 1 đơn vị gốc
 UserSchema.index({ phone: 1, rootCode: 1 }, { unique: true });
 
 module.exports = mongoose.model('User', UserSchema);

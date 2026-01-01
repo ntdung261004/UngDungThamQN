@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
 import { Smartphone, Lock, ChevronLeft, ShieldAlert, HelpCircle } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+// Import AsyncStorage để lưu trạng thái đăng nhập
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import các thành phần tùy chỉnh
 import CustomInput from '../../components/CustomInput';
@@ -29,7 +31,7 @@ const LoginScreens = () => {
       setAlertConfig({ 
         visible: true, 
         type: 'error', 
-        message: "Vui lòng nhập đầy đủ Mã đơn vị, SĐT và mật khẩu", 
+        message: "Vui lòng nhập đầy đủ Key đơn vị, SĐT và mật khẩu", 
         autoClose: false 
       });
       return;
@@ -45,14 +47,20 @@ const LoginScreens = () => {
       const data = await response.json();
 
       if (response.ok) {
+        // QUAN TRỌNG: Lưu thông tin user và token vào máy để app/home.js sử dụng
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        await AsyncStorage.setItem('token', data.token);
+
         setAlertConfig({ 
             visible: true, 
             type: 'success', 
             message: "Đăng nhập thành công!", 
             autoClose: true 
         });
+
         setTimeout(() => {
-          router.replace({ pathname: '/home', params: { userRole: data.user.role } });
+          // Điều hướng về /home (File app/home.js sẽ tự check isApproved)
+          router.replace('/home');
         }, 1500);
       } else {
         setAlertConfig({ 
@@ -75,7 +83,6 @@ const LoginScreens = () => {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Nút quay lại màn hình chọn vai trò */}
         <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
           <ChevronLeft size={28} color={COLORS.textDark} />
         </TouchableOpacity>
@@ -86,8 +93,8 @@ const LoginScreens = () => {
         </Text>
 
         <View style={styles.form}>
-          {/* TRƯỜNG 1: MÃ ĐƠN VỊ GỐC */}
-          <Text style={styles.label}>Mã đơn vị gốc (Do quản trị viên cấp)</Text>
+          {/* ĐỔI NHÃN THEO YÊU CẦU MỚI */}
+          <Text style={styles.label}>Key đơn vị cung cấp</Text>
           <CustomInput 
             icon={ShieldAlert} 
             placeholder="Ví dụ: D6E5F5QK7" 
@@ -95,7 +102,6 @@ const LoginScreens = () => {
             onChangeText={setRootCode}
           />
 
-          {/* TRƯỜNG 2: SỐ ĐIỆN THOẠI */}
           <Text style={styles.label}>Số điện thoại</Text>
           <CustomInput 
             icon={Smartphone} 
@@ -105,7 +111,6 @@ const LoginScreens = () => {
             onChangeText={setPhone}
           />
 
-          {/* TRƯỜNG 3: MẬT KHẨU */}
           <Text style={styles.label}>Mật khẩu</Text>
           <CustomInput 
             icon={Lock} 
@@ -115,7 +120,6 @@ const LoginScreens = () => {
             onChangeText={setPassword}
           />
 
-          {/* LINK QUÊN MẬT KHẨU */}
           <TouchableOpacity 
             style={styles.forgotPassContainer} 
             onPress={() => router.push('/forgot_password')}
@@ -128,7 +132,6 @@ const LoginScreens = () => {
             <Text style={styles.loginText}>Vào hệ thống</Text>
           </TouchableOpacity>
 
-          {/* LINK CHUYỂN SANG ĐĂNG KÝ */}
           <View style={styles.footerLink}>
             <Text style={styles.noAccount}>Chưa có tài khoản? </Text>
             <TouchableOpacity 

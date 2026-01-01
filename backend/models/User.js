@@ -5,21 +5,20 @@ const UserSchema = new mongoose.Schema({
   phone: { type: String, required: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['canbo', 'relative'], required: true },
-  
-  // Các trường định danh đơn vị
-  rootCode: { type: String, required: true }, 
-  unitCode: { type: String, required: true }, // Tên đơn vị (VD: Trung đội 5)
-  unitPath: { type: String, required: true }, 
+  rootCode: { type: String, required: true },
+  unitCode: { type: String, required: true },
+  unitPath: { type: String, required: true },
+  isAdmin: { type: Boolean, default: false },
+  isApproved: { type: Boolean, default: false },
 
-  // QUAN TRỌNG: Phải khai báo ở đây để MongoDB chấp nhận dữ liệu
-  isAdmin: { type: Boolean, default: false }, 
-  isApproved: { type: Boolean, default: false }, 
+  // --- CÁC TRƯỜNG MỚI BỔ SUNG ---
+  rank: { type: String, default: "" },      // Cấp bậc (VD: Thượng úy)
+  position: { type: String, default: "" },  // Chức vụ (VD: Đại đội trưởng)
+  avatar: { type: String, default: "" },    // Link ảnh đại diện
+  isProfileUpdated: { type: Boolean, default: false }, // Đánh dấu đã cập nhật thông tin lần đầu chưa
 
-  isVerified: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 
-// Đảm bảo SĐT duy nhất trong cùng 1 đơn vị gốc
 UserSchema.index({ phone: 1, rootCode: 1 }, { unique: true });
-
 module.exports = mongoose.model('User', UserSchema);

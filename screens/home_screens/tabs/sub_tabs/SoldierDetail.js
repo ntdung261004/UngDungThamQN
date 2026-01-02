@@ -1,27 +1,93 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { ArrowLeft, MapPin, Calendar, Phone, Shield, Bookmark } from 'lucide-react-native';
 import { COLORS } from '../../../../constants/theme';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
-export default function SoldierDetail({ route }) {
-  const soldier = route?.params?.soldier;
-  if (!soldier) return <View style={{ padding: 20 }}><Text>Không tìm thấy chiến sĩ</Text></View>;
+export default function SoldierDetail() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  // Nhận dữ liệu chiến sĩ từ SoldierList
+  const soldier = params.soldier ? JSON.parse(params.soldier) : null;
+
+  if (!soldier) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text>Không tìm thấy thông tin chiến sĩ</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
+          <Text style={{color: COLORS.primary}}>Quay lại</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      {soldier.avatar ? <Image source={{ uri: soldier.avatar }} style={styles.avatar} /> : <View style={[styles.avatar, { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' }]}><Text style={{ color: '#fff' }}>{soldier.fullName?.charAt(0)}</Text></View>}
-      <Text style={styles.name}>{soldier.fullName}</Text>
-      <Text style={styles.info}>{soldier.rank} • {soldier.position}</Text>
-      <Text style={styles.info}>Đơn vị: {soldier.unitCode}</Text>
-      <Text style={styles.info}>Mã: {soldier.soldierId}</Text>
-      <Text style={styles.info}>SĐT người nhà: {soldier.phoneRelative}</Text>
-      <Text style={styles.info}>Nơi ở: {soldier.address}</Text>
-    </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <ArrowLeft size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Chi tiết chiến sĩ</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <ScrollView style={styles.container}>
+        <View style={styles.profileCard}>
+          <View style={styles.avatarWrapper}>
+            {soldier.avatar ? (
+              <Image source={{ uri: soldier.avatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarInitial}>{soldier.fullName?.charAt(0)}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.name}>{soldier.fullName}</Text>
+          <Text style={styles.rankPos}>{soldier.rank} • {soldier.position}</Text>
+        </View>
+
+        <View style={styles.infoSection}>
+          <InfoItem icon={Shield} label="Đơn vị" value={soldier.unitCode} />
+          <InfoItem icon={Phone} label="SĐT người nhà" value={soldier.phoneRelative} />
+          <InfoItem icon={Calendar} label="Ngày sinh" value={soldier.dob ? new Date(soldier.dob).toLocaleDateString('vi-VN') : '---'} />
+          <InfoItem icon={Calendar} label="Ngày nhập ngũ" value={soldier.enlistDate ? new Date(soldier.enlistDate).toLocaleDateString('vi-VN') : '---'} />
+          <InfoItem icon={MapPin} label="Quê quán" value={soldier.address} />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
+const InfoItem = ({ icon: Icon, label, value }) => (
+  <View style={styles.infoItem}>
+    <View style={styles.iconBox}>
+      <Icon size={20} color={COLORS.primary} />
+    </View>
+    <View style={styles.infoRight}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value || 'Chưa cập nhật'}</Text>
+    </View>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  avatar: { width: 120, height: 120, borderRadius: 12, marginBottom: 12 },
-  name: { fontSize: 18, fontWeight: 'bold', marginBottom: 6 },
-  info: { color: '#666', marginBottom: 6 }
+  safeArea: { flex: 1, backgroundColor: '#F8F9FA' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, height: 60, backgroundColor: '#FFF' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  container: { flex: 1 },
+  profileCard: { backgroundColor: '#FFF', padding: 30, alignItems: 'center', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 2 },
+  avatarWrapper: { marginBottom: 15, elevation: 5, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10 },
+  avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, borderColor: '#FFF' },
+  avatarPlaceholder: { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },
+  avatarInitial: { color: '#FFF', fontSize: 40, fontWeight: 'bold' },
+  name: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  rankPos: { fontSize: 14, color: '#777', marginTop: 5 },
+  infoSection: { padding: 20, marginTop: 10 },
+  infoItem: { flexDirection: 'row', backgroundColor: '#FFF', padding: 15, borderRadius: 15, marginBottom: 12, alignItems: 'center' },
+  iconBox: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#F0F7F0', justifyContent: 'center', alignItems: 'center' },
+  infoRight: { marginLeft: 15 },
+  infoLabel: { fontSize: 12, color: '#999' },
+  infoValue: { fontSize: 15, fontWeight: '600', color: '#333', marginTop: 2 },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' }
 });

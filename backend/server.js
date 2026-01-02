@@ -8,7 +8,9 @@ const app = express();
 
 // 2. Cấu hình Middleware (Các phần bổ trợ cho app)
 app.use(cors()); // Cho phép truy cập từ trình duyệt (Web)
-app.use(express.json()); // Cho phép đọc dữ liệu JSON gửi lên
+
+app.use(express.json({ limit: '10mb' })); 
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // 3. Gọi các Route (Đường dẫn API)
 const authRoutes = require('./routes/auth');

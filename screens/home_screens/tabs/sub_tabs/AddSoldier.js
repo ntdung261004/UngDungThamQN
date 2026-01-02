@@ -1,126 +1,207 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, SafeAreaView, Platform, Modal } from 'react-native';
+import { ArrowLeft, Camera, Calendar, ChevronDown, Check } from 'lucide-react-native';
 import { COLORS } from '../../../../constants/theme';
 import CustomAlert from '../../../../components/CustomAlert';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
-export default function AddSoldier({ navigation, route }) {
+export default function AddSoldier() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const currentUser = params.currentUser ? JSON.parse(params.currentUser) : null;
+
   const [form, setForm] = useState({
-    fullName: '', soldierId: '', rank: '', position: '', unitCode: '', unitPath: '', phoneRelative: '', dob: '', enlistDate: '', address: '', avatar: ''
+    fullName: '', 
+    rank: '', 
+    position: 'Chiến sĩ', 
+    unitCode: currentUser?.unitCode || '', 
+    phoneRelative: '', 
+    dob: new Date(), 
+    enlistDate: new Date(), 
+    address: '', 
+    avatar: ''
   });
+  
+  const [showDOB, setShowDOB] = useState(false);
+  const [showEnlist, setShowEnlist] = useState(false);
+  const [showPosModal, setShowPosModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alertConfig, setAlertConfig] = useState({ visible: false, type: 'success', message: '' });
 
-  const handleChange = (key, value) => setForm({ ...form, [key]: value });
+  const positions = ["Chiến sĩ", "Tiểu đội trưởng", "Khẩu đội trưởng"];
+
+  const validatePhone = (phone) => {
+    return /^(0[3|5|7|8|9])([0-9]{8})$/.test(phone);
+  };
 
   const pickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Quyền truy cập bị từ chối', 'Vui lòng cho phép truy cập ảnh để tải lên.');
+        setAlertConfig({ visible: true, type: 'error', message: 'Cần quyền truy cập ảnh.' });
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        quality: 0.6,
+        quality: 0.3, // Giảm chất lượng ảnh để tối ưu dung lượng
         base64: true
       });
-
-      if (result.cancelled) return;
-      const dataUri = `data:image/jpeg;base64,${result.base64}`;
-      setForm(prev => ({ ...prev, avatar: dataUri }));
-    } catch (err) {
-      console.error('Lỗi chọn ảnh:', err);
-      setAlertConfig({ visible: true, type: 'error', message: 'Lỗi khi chọn ảnh' });
-    }
-  }
-
-  const handleSubmit = async () => {
-    // Validation: họ tên, mã, sđt người nhà bắt buộc
-    if (!form.fullName || !form.soldierId || !form.phoneRelative) {
-      setAlertConfig({ visible: true, type: 'error', message: 'Vui lòng nhập họ tên, mã chiến sĩ và SĐT người nhà' });
-      return;
-    }
-    setLoading(true);
-    try {
-      const currentUser = route?.params?.currentUser;
-      const payload = { ...form, rootCode: currentUser?.rootCode, unitCode: form.unitCode || currentUser?.unitCode, unitPath: form.unitPath || currentUser?.unitPath };
-      const res = await fetch('http://192.168.1.100:5000/api/auth/soldiers', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setAlertConfig({ visible: true, type: 'success', message: 'Thêm chiến sĩ thành công' });
-        setTimeout(() => {
-          setAlertConfig({ ...alertConfig, visible: false });
-          navigation.goBack();
-        }, 1200);
-      } else {
-        setAlertConfig({ visible: true, type: 'error', message: data.message || 'Lỗi khi thêm' });
+      if (!result.canceled) {
+        setForm(prev => ({ ...prev, avatar: `data:image/jpeg;base64,${result.assets[0].base64}` }));
       }
     } catch (err) {
-      console.error('Lỗi submit:', err);
-      setAlertConfig({ visible: true, type: 'error', message: 'Lỗi kết nối' });
+      setAlertConfig({ visible: true, type: 'error', message: 'Lỗi chọn ảnh' });
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!form.fullName || !form.rank || !form.address) {
+      setAlertConfig({ visible: true, type: 'error', message: 'Vui lòng điền đủ thông tin (*)' });
+      return;
+    }
+    if (!validatePhone(form.phoneRelative)) {
+      setAlertConfig({ visible: true, type: 'error', message: 'Số điện thoại không đúng định dạng.' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = { 
+        ...form, 
+        dob: form.dob.toISOString().split('T')[0],
+        enlistDate: form.enlistDate.toISOString().split('T')[0],
+        rootCode: currentUser?.rootCode, 
+        unitPath: currentUser?.unitPath,
+        createdBy: currentUser?.id || currentUser?._id
+      };
+
+      const res = await fetch('http://localhost:5000/api/auth/soldiers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        setAlertConfig({ visible: true, type: 'success', message: 'Thêm thành công!' });
+        setTimeout(() => router.back(), 1500); 
+      } else {
+        const data = await res.json();
+        setAlertConfig({ visible: true, type: 'error', message: data.message });
+      }
+    } catch (err) {
+      setAlertConfig({ visible: true, type: 'error', message: 'Lỗi kết nối máy chủ' });
     } finally { setLoading(false); }
-  }
+  };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.title}>Thêm chiến sĩ mới</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}><ArrowLeft size={24} color="#333" /></TouchableOpacity>
+        <Text style={styles.headerTitle}>Thêm chiến sĩ mới</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
-      <Text style={styles.label}>Họ và tên</Text>
-      <TextInput style={styles.input} value={form.fullName} onChangeText={t => handleChange('fullName', t)} placeholder="Nhập họ và tên" />
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        {/* AVATAR */}
+        <View style={styles.avatarSection}>
+          <TouchableOpacity style={styles.avatarPicker} onPress={pickImage}>
+            {form.avatar ? <Image source={{ uri: form.avatar }} style={styles.avatarImg} /> : 
+            <View style={styles.avatarPlaceholder}><Camera size={30} color="#CCC" /><Text style={styles.avatarText}>Thêm ảnh</Text></View>}
+          </TouchableOpacity>
+        </View>
 
-      <Text style={styles.label}>Mã chiến sĩ</Text>
-      <TextInput style={styles.input} value={form.soldierId} onChangeText={t => handleChange('soldierId', t)} placeholder="Mã/ID chiến sĩ" />
+        <InputField label="Họ và tên (*)" value={form.fullName} onChange={t => setForm({...form, fullName: t})} placeholder="VÍ DỤ: NGUYỄN VĂN A" />
+        
+        <View style={styles.row}>
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <InputField label="Cấp bậc (*)" value={form.rank} onChange={t => setForm({...form, rank: t})} placeholder="Binh nhất" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>Chức vụ (*)</Text>
+            <TouchableOpacity style={styles.inputLike} onPress={() => setShowPosModal(true)}>
+              <Text style={{ color: '#333' }}>{form.position}</Text>
+              <ChevronDown size={18} color="#999" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      <Text style={styles.label}>Cấp bậc</Text>
-      <TextInput style={styles.input} value={form.rank} onChangeText={t => handleChange('rank', t)} placeholder="Ví dụ: Binh nhất" />
+        <InputField label="SĐT người nhà (*)" value={form.phoneRelative} onChange={t => setForm({...form, phoneRelative: t})} placeholder="09xxxxxxxx" keyboardType="phone-pad" />
+        
+        {/* DATE PICKERS */}
+        <View style={styles.row}>
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <Text style={styles.label}>Ngày sinh (*)</Text>
+            <TouchableOpacity style={styles.inputLike} onPress={() => setShowDOB(true)}>
+              <Text style={{ color: '#333' }}>{form.dob.toLocaleDateString('vi-VN')}</Text>
+              <Calendar size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>Nhập ngũ (*)</Text>
+            <TouchableOpacity style={styles.inputLike} onPress={() => setShowEnlist(true)}>
+              <Text style={{ color: '#333' }}>{form.enlistDate.toLocaleDateString('vi-VN')}</Text>
+              <Calendar size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      <Text style={styles.label}>Chức vụ</Text>
-      <TextInput style={styles.input} value={form.position} onChangeText={t => handleChange('position', t)} placeholder="Ví dụ: Tiểu đội trưởng" />
+        {showDOB && <DateTimePicker value={form.dob} mode="date" display="default" onChange={(e, d) => { setShowDOB(false); if(d) setForm({...form, dob: d}); }} />}
+        {showEnlist && <DateTimePicker value={form.enlistDate} mode="date" display="default" onChange={(e, d) => { setShowEnlist(false); if(d) setForm({...form, enlistDate: d}); }} />}
 
-      <Text style={styles.label}>Đơn vị</Text>
-      <TextInput style={styles.input} value={form.unitCode} onChangeText={t => handleChange('unitCode', t)} placeholder="Mã đơn vị" />
+        <InputField label="Quê quán (*)" value={form.address} onChange={t => setForm({...form, address: t})} placeholder="Xã, Huyện, Tỉnh" />
 
-      <Text style={styles.label}>SĐT người nhà (bắt buộc)</Text>
-      <TextInput style={styles.input} value={form.phoneRelative} onChangeText={t => handleChange('phoneRelative', t)} placeholder="Số điện thoại người nhà" keyboardType="phone-pad" />
+        <TouchableOpacity style={[styles.btnSubmit, loading && { opacity: 0.7 }]} onPress={handleSubmit} disabled={loading}>
+          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>LƯU CHIẾN SĨ</Text>}
+        </TouchableOpacity>
+      </ScrollView>
 
-      <Text style={styles.label}>Ngày sinh (YYYY-MM-DD)</Text>
-      <TextInput style={styles.input} value={form.dob} onChangeText={t => handleChange('dob', t)} placeholder="1990-01-01" />
+      {/* POSITION MODAL */}
+      <Modal visible={showPosModal} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowPosModal(false)}>
+          <View style={styles.modalContent}>
+            {positions.map((pos) => (
+              <TouchableOpacity key={pos} style={styles.modalItem} onPress={() => { setForm({ ...form, position: pos }); setShowPosModal(false); }}>
+                <Text style={[styles.modalItemText, form.position === pos && { color: COLORS.primary, fontWeight: 'bold' }]}>{pos}</Text>
+                {form.position === pos && <Check size={18} color={COLORS.primary} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
-      <Text style={styles.label}>Ngày nhập ngũ (YYYY-MM-DD)</Text>
-      <TextInput style={styles.input} value={form.enlistDate} onChangeText={t => handleChange('enlistDate', t)} placeholder="2020-05-01" />
-
-      <Text style={styles.label}>Nơi ở</Text>
-      <TextInput style={styles.input} value={form.address} onChangeText={t => handleChange('address', t)} placeholder="Địa chỉ liên hệ" />
-
-      <Text style={[styles.label, { marginTop: 12 }]}>Ảnh chiến sĩ (tùy chọn)</Text>
-      {form.avatar ? (
-        <Image source={{ uri: form.avatar }} style={{ width: 120, height: 120, borderRadius: 8, marginTop: 8 }} />
-      ) : (
-        <View style={{ marginTop: 8 }} />
-      )}
-      <TouchableOpacity style={[styles.btn, { backgroundColor: '#4CAF50', marginTop: 10 }]} onPress={pickImage}>
-        <Text style={styles.btnText}>Chọn ảnh</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleSubmit} disabled={loading}>
-        <Text style={styles.btnText}>{loading ? 'Đang lưu...' : 'Lưu chiến sĩ'}</Text>
-      </TouchableOpacity>
-
-      <CustomAlert visible={alertConfig.visible} type={alertConfig.type} message={alertConfig.message} onClose={() => setAlertConfig({ ...alertConfig, visible: false })} autoClose={alertConfig.type === 'success'} />
-    </ScrollView>
+      <CustomAlert visible={alertConfig.visible} type={alertConfig.type} message={alertConfig.message} onClose={() => setAlertConfig({ ...alertConfig, visible: false })} />
+    </SafeAreaView>
   );
 }
 
+const InputField = ({ label, value, onChange, placeholder, keyboardType }) => (
+  <View style={styles.inputGroup}>
+    <Text style={styles.label}>{label}</Text>
+    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor="#BBB" keyboardType={keyboardType} />
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
-  title: { fontSize: 18, fontWeight: '700', color: '#333', marginBottom: 12 },
-  label: { fontSize: 13, color: '#666', marginTop: 10 },
-  input: { borderWidth: 1, borderColor: '#EEE', padding: 10, borderRadius: 10, marginTop: 6 },
-  btn: { backgroundColor: COLORS.primary, marginTop: 20, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  btnText: { color: '#FFF', fontWeight: '700' }
+  safeArea: { flex: 1, backgroundColor: '#FFF' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, height: 60, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  avatarSection: { alignItems: 'center', marginVertical: 20 },
+  avatarPicker: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#F8F9FA', borderStyle: 'dashed', borderWidth: 1, borderColor: '#CCC', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  avatarImg: { width: 100, height: 100 },
+  avatarPlaceholder: { alignItems: 'center' },
+  avatarText: { fontSize: 11, color: '#AAA', marginTop: 5 },
+  inputGroup: { marginBottom: 15 },
+  label: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 6 },
+  input: { backgroundColor: '#F9F9F9', borderWidth: 1, borderColor: '#EEE', padding: 12, borderRadius: 10, fontSize: 14, color: '#333' },
+  inputLike: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9F9F9', borderWidth: 1, borderColor: '#EEE', padding: 12, borderRadius: 10, height: 48 },
+  row: { flexDirection: 'row', marginBottom: 15 },
+  btnSubmit: { backgroundColor: COLORS.primary, paddingVertical: 15, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#FFF', width: '80%', borderRadius: 15, padding: 10 },
+  modalItem: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  modalItemText: { fontSize: 15, color: '#333' }
 });

@@ -27,5 +27,5 @@ app.get('/', (req, res) => {
 // 5. Chạy server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
+    console.log(`🚀 Server đang chạy tại: http://192.168.1.100:${PORT} (hoặc http://localhost:${PORT} trên máy)`);
 });

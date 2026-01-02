@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS } from '../../../constants/theme';
 import OfficerList from './sub_tabs/OfficerList';
+import SoldierList from './sub_tabs/SoldierList';
 
-export default function ListTab({ user }) {
+export default function ListTab({ user, navigation }) {
   // Nếu là Admin thì mặc định mở 'Officers', nếu không thì mở 'Soldiers'
   const [subTab, setSubTab] = useState(user?.isAdmin ? 'Officers' : 'Soldiers');
 
   const renderSubContent = () => {
     switch (subTab) {
       case 'Soldiers': 
-        return <View style={styles.page}><Text style={styles.emptyText}>Trang: Danh sách Chiến sĩ</Text></View>;
+        return <SoldierList currentUser={user} navigation={navigation} />;
       case 'Relatives': 
         return <View style={styles.page}><Text style={styles.emptyText}>Trang: Thân nhân đăng ký</Text></View>;
       case 'Officers': 

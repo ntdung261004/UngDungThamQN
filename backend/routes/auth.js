@@ -151,4 +151,69 @@ router.get('/overview-stats/:userId', async (req, res) => {
     }
 });
 
+// --- API TẠO CHIẾN SĨ ---
+router.post('/soldiers', async (req, res) => {
+    try {
+        const { fullName, soldierId, rank, position, unitCode, unitPath, phoneRelative, dob, enlistDate, address, rootCode, avatar } = req.body;
+
+        // phoneRelative bắt buộc để liên kết người nhà với chiến sĩ
+        if (!phoneRelative) return res.status(400).json({ message: 'Số điện thoại người nhà (phoneRelative) là bắt buộc.' });
+
+        // Kiểm tra xem đã có phone + rootCode trùng không
+        const existing = await User.findOne({ phone: phoneRelative, rootCode: rootCode || '' });
+        if (existing) return res.status(400).json({ message: 'Số điện thoại này đã được sử dụng trong đơn vị.' });
+
+        const newSoldier = new User({
+            fullName,
+            phone: phoneRelative,
+            password: 'changeme', // mật khẩu tạm thời, không dùng để login
+            role: 'soldier',
+            rootCode: rootCode || '',
+            unitCode: unitCode || '',
+            unitPath: unitPath || '',
+            isAdmin: false,
+            isApproved: true, // tự động duyệt khi thêm bằng tài khoản quản lý
+
+            rank: rank || '',
+            position: position || '',
+            soldierId: soldierId || '',
+            phoneRelative: phoneRelative || '',
+            dob: dob ? new Date(dob) : null,
+            enlistDate: enlistDate ? new Date(enlistDate) : null,
+            address: address || '',
+            avatar: avatar || '',
+            isProfileUpdated: true
+        });
+
+        await newSoldier.save();
+        res.status(200).json({ message: 'Thêm chiến sĩ thành công', soldier: newSoldier });
+    } catch (err) {
+        console.error('Lỗi thêm chiến sĩ:', err);
+        // Nếu duplicate key do index phone+rootCode
+        if (err.code === 11000) {
+            return res.status(400).json({ message: 'Dữ liệu trùng (số điện thoại đã tồn tại).' });
+        }
+        res.status(500).json({ message: 'Lỗi server khi thêm chiến sĩ' });
+    }
+});
+
+// GET: danh sách chiến sĩ theo user
+router.get('/soldiers/:userId', async (req, res) => {
+    try {
+        const currentUser = await User.findById(req.params.userId);
+        if (!currentUser) return res.status(404).json({ message: 'Không tìm thấy user' });
+
+        let filter = { rootCode: currentUser.rootCode, role: 'soldier' };
+        if (!currentUser.isAdmin) {
+            filter.unitPath = new RegExp(currentUser.unitPath, 'i');
+        }
+
+        const soldiers = await User.find(filter).sort({ createdAt: -1 });
+        res.json({ soldiers });
+    } catch (err) {
+        console.error('Lỗi lấy danh sách chiến sĩ:', err);
+        res.status(500).json({ message: 'Lỗi server' });
+    }
+});
+
 module.exports = router;

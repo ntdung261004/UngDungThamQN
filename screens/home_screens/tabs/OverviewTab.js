@@ -12,7 +12,7 @@ const OverviewTab = ({ user }) => {
     try {
       // Dùng user.id (đã map từ _id ở backend login)
       const userId = user?.id || user?._id; 
-      const response = await fetch(`http://localhost:5000/api/auth/overview-stats/${userId}`);
+      const response = await fetch(`http://192.168.1.100:5000/api/auth/overview-stats/${userId}`);
       const data = await response.json();
       setStats(data);
     } catch (error) { console.error(error); } 

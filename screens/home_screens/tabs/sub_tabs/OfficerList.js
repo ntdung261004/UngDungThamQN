@@ -19,7 +19,7 @@ export default function OfficerList({ currentUser }) {
     const userId = currentUser?.id || currentUser?._id;
     if (!userId) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/pending-officers/${userId}`);
+      const response = await fetch(`http://192.168.1.100:5000/api/auth/pending-officers/${userId}`);
       const data = await response.json();
       setPending(data.pending || []);
       setApproved(data.approved || []);
@@ -32,7 +32,7 @@ export default function OfficerList({ currentUser }) {
 
   const handleApprove = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/auth/approve-officer/${id}`, { 
+      const response = await fetch(`http://192.168.1.100:5000/api/auth/approve-officer/${id}`, { 
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' }
       });

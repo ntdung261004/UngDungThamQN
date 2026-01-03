@@ -1,17 +1,49 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { COLORS } from '../../../constants/theme';
 import OfficerList from './sub_tabs/OfficerList';
 import SoldierList from './sub_tabs/SoldierList';
 
 export default function ListTab({ user, navigation }) {
-  // Nếu là Admin thì mặc định mở 'Officers', nếu không thì mở 'Soldiers'
   const [subTab, setSubTab] = useState(user?.isAdmin ? 'Officers' : 'Soldiers');
+  const [soldiers, setSoldiers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Thay đổi IP này thành IP máy tính chạy server của bạn (VD: 192.168.x.x)
+      const baseUrl = 'http://192.168.1.100:5000/api/auth';
+      
+      const [resS, resU] = await Promise.all([
+        fetch(`${baseUrl}/soldiers`),
+        fetch(`${baseUrl}/users`)
+      ]);
+
+      if (resS.ok && resS.headers.get('content-type')?.includes('application/json')) {
+        setSoldiers(await resS.json());
+      }
+      if (resU.ok && resU.headers.get('content-type')?.includes('application/json')) {
+        setAllUsers(await resU.json());
+      }
+    } catch (error) {
+      console.error("Lỗi lấy dữ liệu:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const renderSubContent = () => {
+    if (loading) return <ActivityIndicator style={{ flex: 1 }} color={COLORS.primary} />;
+
     switch (subTab) {
       case 'Soldiers': 
-        return <SoldierList currentUser={user} navigation={navigation} />;
+        return <SoldierList soldiers={soldiers} officers={allUsers} currentUser={user} />;
       case 'Relatives': 
         return <View style={styles.page}><Text style={styles.emptyText}>Trang: Thân nhân đăng ký</Text></View>;
       case 'Officers': 
@@ -23,7 +55,6 @@ export default function ListTab({ user, navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* SUB-MENU TABS */}
       <View style={styles.subTabBar}>
         <TouchableOpacity 
           style={[styles.subTab, subTab === 'Soldiers' && styles.activeSubTab]} 
@@ -39,7 +70,6 @@ export default function ListTab({ user, navigation }) {
           <Text style={[styles.subTabText, subTab === 'Relatives' && styles.activeSubTabText]}>Thân nhân</Text>
         </TouchableOpacity>
 
-        {/* CHỈ HIỂN THỊ MỤC CÁN BỘ NẾU LÀ ADMIN */}
         {user?.isAdmin && (
           <TouchableOpacity 
             style={[styles.subTab, subTab === 'Officers' && styles.activeSubTab]} 
@@ -59,14 +89,7 @@ export default function ListTab({ user, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
-  subTabBar: { 
-    flexDirection: 'row', 
-    backgroundColor: '#F4F4F4', 
-    marginHorizontal: 15, 
-    marginVertical: 10, 
-    borderRadius: 12, 
-    padding: 4 
-  },
+  subTabBar: { flexDirection: 'row', backgroundColor: '#F4F4F4', marginHorizontal: 15, marginVertical: 10, borderRadius: 12, padding: 4 },
   subTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
   activeSubTab: { backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2 },
   subTabText: { fontSize: 13, color: '#888', fontWeight: '600' },

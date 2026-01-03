@@ -68,7 +68,6 @@ export default function AddSoldier() {
   };
 
   const openCustomPicker = (type) => {
-    // SỬA LỖI: Kiểm tra an toàn nếu form[type] không phải là đối tượng Date hợp lệ
     const current = (form[type] instanceof Date && !isNaN(form[type])) ? form[type] : new Date();
     
     setTempDate({
@@ -106,7 +105,7 @@ export default function AddSoldier() {
   };
 
   const handleSubmit = async () => {
-    if (!form.fullName || !form.rank || !form.address) {
+    if (!form.fullName || !form.rank || !form.address || !form.unitCode) {
       setAlertConfig({ visible: true, type: 'error', message: 'Vui lòng điền đủ thông tin (*)' });
       return;
     }
@@ -156,9 +155,17 @@ export default function AddSoldier() {
         </View>
 
         <InputField label="Họ và tên (*)" value={form.fullName} onChange={t => setForm({...form, fullName: t})} placeholder="VÍ DỤ: NGUYỄN VĂN A" />
-        <InputField label="Đơn vị (*)" value={form.unitCode} editable={false} />
+        
+        <InputField 
+          label="Đơn vị (*)" 
+          value={form.unitCode} 
+          onChange={t => setForm({...form, unitCode: t})} 
+          placeholder="Nhập mã đơn vị"
+          editable={true} 
+        />
 
         <View style={styles.row}>
+          {/* Đã sửa từ <div> thành <View> */}
           <View style={{ flex: 1, marginRight: 10 }}>
             <Text style={styles.label}>Cấp bậc (*)</Text>
             <TouchableOpacity style={styles.inputLike} onPress={() => setShowRankModal(true)}>

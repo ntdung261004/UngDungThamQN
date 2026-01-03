@@ -7,7 +7,6 @@ import SoldierList from './sub_tabs/SoldierList';
 export default function ListTab({ user, navigation }) {
   const [subTab, setSubTab] = useState(user?.isAdmin ? 'Officers' : 'Soldiers');
   const [soldiers, setSoldiers] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
@@ -15,18 +14,19 @@ export default function ListTab({ user, navigation }) {
     try {
       // Thay đổi IP này thành IP máy tính chạy server của bạn (VD: 192.168.x.x)
       const baseUrl = 'http://192.168.1.100:5000/api/auth';
-      
-      const [resS, resU] = await Promise.all([
-        fetch(`${baseUrl}/soldiers`),
-        fetch(`${baseUrl}/users`)
-      ]);
+      const userId = user?.id || user?._id;
+      if (!userId) return;
 
+      // Lấy danh sách chiến sĩ theo userId (backend trả về { soldiers })
+      const resS = await fetch(`${baseUrl}/soldiers/${userId}`);
       if (resS.ok && resS.headers.get('content-type')?.includes('application/json')) {
-        setSoldiers(await resS.json());
+        const data = await resS.json();
+        setSoldiers(Array.isArray(data.soldiers) ? data.soldiers : []);
+      } else {
+        console.error('Lỗi fetch soldiers:', resS.status);
+        setSoldiers([]);
       }
-      if (resU.ok && resU.headers.get('content-type')?.includes('application/json')) {
-        setAllUsers(await resU.json());
-      }
+
     } catch (error) {
       console.error("Lỗi lấy dữ liệu:", error);
     } finally {
@@ -43,7 +43,7 @@ export default function ListTab({ user, navigation }) {
 
     switch (subTab) {
       case 'Soldiers': 
-        return <SoldierList soldiers={soldiers} officers={allUsers} currentUser={user} />;
+        return <SoldierList soldiers={soldiers} currentUser={user} />;
       case 'Relatives': 
         return <View style={styles.page}><Text style={styles.emptyText}>Trang: Thân nhân đăng ký</Text></View>;
       case 'Officers': 

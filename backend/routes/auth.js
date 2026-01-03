@@ -152,4 +152,29 @@ router.get('/soldiers/:userId', async (req, res) => {
     }
 });
 
+// --- API: kiểm tra số điện thoại người thân đã được đăng ký trong User hay chưa ---
+router.get('/relative-exists/:userId/:phone', async (req, res) => {
+    try {
+        const currentUser = await User.findById(req.params.userId);
+        if (!currentUser) return res.status(404).json({ message: 'Không tìm thấy user' });
+
+        const phone = req.params.phone;
+        if (!phone) return res.status(400).json({ message: 'Thiếu số điện thoại' });
+
+        // Tìm user role relative với cùng rootCode (nếu không phải admin, we still restrict by rootCode)
+        const filter = { phone };
+        if (!currentUser.isAdmin) {
+            filter.rootCode = currentUser.rootCode;
+        } else {
+            // even admin should be limited to same rootCode for safety
+            filter.rootCode = currentUser.rootCode;
+        }
+
+        const rel = await User.findOne({ ...filter, role: 'relative' });
+        res.json({ exists: !!rel });
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi kiểm tra người thân' });
+    }
+});
+
 module.exports = router;

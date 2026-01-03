@@ -130,7 +130,7 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
     return (
       <TouchableOpacity 
         style={styles.card}
-        onPress={() => router.push({ pathname: '/SoldierDetail', params: { id: item._id } })}
+        onPress={() => router.push({ pathname: '/SoldierDetail', params: { soldier: JSON.stringify(item), currentUser: JSON.stringify(currentUser) } })}
       >
         <View style={styles.cardHeader}>
           {/* Avatar */}

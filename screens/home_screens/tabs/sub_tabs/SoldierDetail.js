@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
-import { ArrowLeft, MapPin, Calendar, Phone, Shield, Bookmark } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
+import { ArrowLeft, MapPin, Calendar, Phone, Shield, Bookmark, UserCheck, UserMinus } from 'lucide-react-native';
 import { COLORS } from '../../../../constants/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { baseUrl } from '../../../../constants/config';
 
 export default function SoldierDetail() {
   const router = useRouter();
@@ -10,6 +11,33 @@ export default function SoldierDetail() {
   
   // Nhận dữ liệu chiến sĩ từ SoldierList
   const soldier = params.soldier ? JSON.parse(params.soldier) : null;
+  const currentUser = params.currentUser ? JSON.parse(params.currentUser) : null;
+  
+  const [hasRegisteredRelative, setHasRegisteredRelative] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function checkRel() {
+      if (!soldier || !currentUser || !soldier.phoneRelative) {
+        if (mounted) setHasRegisteredRelative(false);
+        return;
+      }
+      try {
+        const uid = currentUser.id || currentUser._id;
+        const res = await fetch(`${baseUrl}/relative-exists/${uid}/${encodeURIComponent(soldier.phoneRelative)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) setHasRegisteredRelative(!!data.exists);
+        } else {
+          if (mounted) setHasRegisteredRelative(false);
+        }
+      } catch (e) {
+        if (mounted) setHasRegisteredRelative(false);
+      }
+    }
+    checkRel();
+    return () => { mounted = false; };
+  }, [soldier, currentUser]);
 
   if (!soldier) {
     return (
@@ -45,6 +73,27 @@ export default function SoldierDetail() {
           </View>
           <Text style={styles.name}>{soldier.fullName}</Text>
           <Text style={styles.rankPos}>{soldier.rank} • {soldier.position}</Text>
+          <View style={styles.headerTagRow}>
+            <View style={[styles.detailTag, hasRegisteredRelative ? styles.tagGreen : styles.tagOrange]}>
+              {hasRegisteredRelative === null ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : hasRegisteredRelative ? (
+                <UserCheck size={14} color={'#27ae60'} />
+              ) : (
+                <UserMinus size={14} color={'#f39c12'} />
+              )}
+              <Text style={[styles.detailTagText, { color: hasRegisteredRelative ? '#27ae60' : '#f39c12' }]}>{hasRegisteredRelative ? 'Đã có người thân' : 'Chưa có người thân'}</Text>
+            </View>
+
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => { /* placeholder */ }}>
+                <Text style={styles.actionBtnText}>Sửa thông tin</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FDECEF' }]} onPress={() => { /* placeholder */ }}>
+                <Text style={[styles.actionBtnText, { color: '#E53935' }]}>Xóa</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         <View style={styles.infoSection}>
@@ -77,6 +126,12 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: 'bold' },
   container: { flex: 1 },
   profileCard: { backgroundColor: '#FFF', padding: 30, alignItems: 'center', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 2 },
+  headerTagRow: { flexDirection: 'row', marginTop: 12, alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 20 },
+  detailTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
+  detailTagText: { fontSize: 12, fontWeight: '700', marginLeft: 6 },
+  actionRow: { flexDirection: 'row' },
+  actionBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#EEE' },
+  actionBtnText: { fontSize: 13, fontWeight: '700' },
   avatarWrapper: { marginBottom: 15, elevation: 5, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10 },
   avatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 4, borderColor: '#FFF' },
   avatarPlaceholder: { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },

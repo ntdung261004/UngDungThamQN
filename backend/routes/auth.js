@@ -118,10 +118,17 @@ router.get('/overview-stats/:userId', async (req, res) => {
 // PHẦN 2: QUẢN LÝ SOLDIER (CHIẾN SĨ)
 // =============================================================
 
-// --- API THÊM CHIẾN SĨ (Vào bảng Soldier riêng) ---
 router.post('/soldiers', async (req, res) => {
     try {
         const { fullName, rank, position, unitCode, unitPath, rootCode, phoneRelative, dob, enlistDate, address, avatar, createdBy } = req.body;
+
+        // BẮT LỖI: Kiểm tra SĐT người nhà đã tồn tại trong bảng User chưa
+        const existingUser = await User.findOne({ phone: phoneRelative });
+        if (existingUser) {
+            return res.status(400).json({ 
+                message: "Số điện thoại này đã được đăng ký bởi một người dùng khác trong hệ thống. Vui lòng nhập số khác!" 
+            });
+        }
 
         const newSoldier = new Soldier({
             fullName, rank, position, unitCode, unitPath, rootCode, 

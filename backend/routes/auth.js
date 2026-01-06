@@ -177,4 +177,57 @@ router.get('/relative-exists/:userId/:phone', async (req, res) => {
     }
 });
 
+// --- API CẬP NHẬT CHIẾN SĨ ---
+router.put('/soldiers/:id', async (req, res) => {
+    try {
+        const soldierId = req.params.id;
+        const updaterId = req.body.userId; // client must send current user id in body
+        if (!updaterId) return res.status(400).json({ message: 'Thiếu userId' });
+
+        const currentUser = await User.findById(updaterId);
+        if (!currentUser) return res.status(404).json({ message: 'Không tìm thấy user cập nhật' });
+
+        const soldier = await Soldier.findById(soldierId);
+        if (!soldier) return res.status(404).json({ message: 'Không tìm thấy chiến sĩ' });
+
+        // Kiểm tra quyền: cùng rootCode
+        if (soldier.rootCode !== currentUser.rootCode) return res.status(403).json({ message: 'Không có quyền chỉnh sửa chiến sĩ này' });
+
+        const updates = req.body.updates || {};
+        // Prevent changing rootCode via update
+        delete updates.rootCode;
+
+        Object.keys(updates).forEach(k => {
+            soldier[k] = updates[k];
+        });
+
+        await soldier.save();
+        res.json({ message: 'Cập nhật chiến sĩ thành công', soldier });
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi cập nhật chiến sĩ: ' + err.message });
+    }
+});
+
+// --- API XÓA CHIẾN SĨ ---
+router.delete('/soldiers/:id', async (req, res) => {
+    try {
+        const soldierId = req.params.id;
+        const deleterId = req.body.userId;
+        if (!deleterId) return res.status(400).json({ message: 'Thiếu userId' });
+
+        const currentUser = await User.findById(deleterId);
+        if (!currentUser) return res.status(404).json({ message: 'Không tìm thấy user' });
+
+        const soldier = await Soldier.findById(soldierId);
+        if (!soldier) return res.status(404).json({ message: 'Không tìm thấy chiến sĩ' });
+
+        if (soldier.rootCode !== currentUser.rootCode) return res.status(403).json({ message: 'Không có quyền xóa chiến sĩ này' });
+
+        await Soldier.findByIdAndDelete(soldierId);
+        res.json({ message: 'Xóa chiến sĩ thành công' });
+    } catch (err) {
+        res.status(500).json({ message: 'Lỗi xóa chiến sĩ: ' + err.message });
+    }
+});
+
 module.exports = router;

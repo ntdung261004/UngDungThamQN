@@ -10,17 +10,18 @@ export default function AddSoldier() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const currentUser = params.currentUser ? JSON.parse(params.currentUser) : null;
+  const editingSoldier = params.soldier ? JSON.parse(params.soldier) : null;
 
   const [form, setForm] = useState({
-    fullName: '', 
-    rank: 'Binh nhì', 
-    position: 'Chiến sĩ', 
-    unitCode: currentUser?.unitCode || '', 
-    phoneRelative: '', 
-    dob: new Date(), 
-    enlistDate: new Date(), 
-    address: '', 
-    avatar: ''
+    fullName: editingSoldier?.fullName || '', 
+    rank: editingSoldier?.rank || 'Binh nhì', 
+    position: editingSoldier?.position || 'Chiến sĩ', 
+    unitCode: editingSoldier?.unitCode || currentUser?.unitCode || '', 
+    phoneRelative: editingSoldier?.phoneRelative || '', 
+    dob: editingSoldier?.dob ? new Date(editingSoldier.dob) : new Date(), 
+    enlistDate: editingSoldier?.enlistDate ? new Date(editingSoldier.enlistDate) : new Date(), 
+    address: editingSoldier?.address || '', 
+    avatar: editingSoldier?.avatar || ''
   });
 
   const [dobInput, setDobInput] = useState(new Date().toLocaleDateString('vi-VN'));
@@ -97,6 +98,7 @@ export default function AddSoldier() {
         base64: true
       });
       if (!result.canceled) {
+        // If editing and user picks new image, replace; otherwise set new
         setForm(prev => ({ ...prev, avatar: `data:image/jpeg;base64,${result.assets[0].base64}` }));
       }
     } catch (err) {
@@ -111,38 +113,72 @@ export default function AddSoldier() {
     }
     setLoading(true);
     try {
-      const payload = { 
-        ...form, 
+      const basePayload = { 
+        fullName: form.fullName,
+        rank: form.rank,
+        position: form.position,
+        unitCode: form.unitCode,
+        phoneRelative: form.phoneRelative,
         dob: form.dob.toISOString().split('T')[0],
         enlistDate: form.enlistDate.toISOString().split('T')[0],
-        rootCode: currentUser?.rootCode, 
-        unitPath: currentUser?.unitPath,
-        createdBy: currentUser?.id || currentUser?._id
+        address: form.address,
+        avatar: form.avatar
       };
 
-      const res = await fetch('http://192.168.1.100:5000/api/auth/soldiers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await res.json();
-      if (res.ok) {
-        setAlertConfig({ visible: true, type: 'success', message: 'Thêm thành công!' });
-        setTimeout(() => router.back(), 1500); 
+      if (editingSoldier) {
+        // Update flow
+        const res = await fetch(`http://192.168.1.100:5000/api/auth/soldiers/${editingSoldier._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser?.id || currentUser?._id, updates: basePayload })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setAlertConfig({ visible: true, type: 'success', message: 'Cập nhật thành công!' });
+          setTimeout(() => router.replace('/home?tab=List'), 1200);
+        } else {
+          setAlertConfig({ visible: true, type: 'error', message: data.message || 'Lỗi cập nhật' });
+        }
       } else {
-        setAlertConfig({ visible: true, type: 'error', message: data.message });
+        // Create flow
+        const payload = { 
+          ...basePayload,
+          rootCode: currentUser?.rootCode, 
+          unitPath: currentUser?.unitPath,
+          createdBy: currentUser?.id || currentUser?._id
+        };
+
+        const res = await fetch('http://192.168.1.100:5000/api/auth/soldiers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setAlertConfig({ visible: true, type: 'success', message: 'Thêm thành công!' });
+          setTimeout(() => router.replace('/home?tab=List'), 1200); 
+        } else {
+          setAlertConfig({ visible: true, type: 'error', message: data.message });
+        }
       }
     } catch (err) {
       setAlertConfig({ visible: true, type: 'error', message: 'Lỗi kết nối máy chủ' });
     } finally { setLoading(false); }
   };
 
+  // Initialize inputs when editing
+  React.useEffect(() => {
+    if (editingSoldier) {
+      setDobInput(editingSoldier.dob ? new Date(editingSoldier.dob).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN'));
+      setEnlistInput(editingSoldier.enlistDate ? new Date(editingSoldier.enlistDate).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN'));
+    }
+  }, [editingSoldier]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}><ArrowLeft size={24} color="#333" /></TouchableOpacity>
-        <Text style={styles.headerTitle}>Thêm chiến sĩ mới</Text>
+        <Text style={styles.headerTitle}>{editingSoldier ? 'Cập nhật chiến sĩ' : 'Thêm chiến sĩ mới'}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -220,7 +256,7 @@ export default function AddSoldier() {
         <InputField label="Quê quán (*)" value={form.address} onChange={t => setForm({...form, address: t})} placeholder="Xã, Tỉnh" />
 
         <TouchableOpacity style={[styles.btnSubmit, loading && { opacity: 0.7 }]} onPress={handleSubmit} disabled={loading}>
-          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>LƯU CHIẾN SĨ</Text>}
+          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>{editingSoldier ? 'CẬP NHẬT' : 'LƯU CHIẾN SĨ'}</Text>}
         </TouchableOpacity>
       </ScrollView>
 

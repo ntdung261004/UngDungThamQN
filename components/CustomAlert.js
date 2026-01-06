@@ -3,17 +3,16 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { CheckCircle2, AlertCircle, X } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 
-const CustomAlert = ({ visible, type, message, onClose, autoClose = false }) => {
+const CustomAlert = ({ visible, type, message, onClose, autoClose = false, confirmMode = false, onConfirm, confirmText = 'Có', cancelText = 'Hủy' }) => {
   const opacity = new Animated.Value(0);
 
   useEffect(() => {
     if (visible) {
       Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-      
-      // Nếu là autoClose (thành công), tự động đóng sau 2 giây
+
       if (autoClose) {
         const timer = setTimeout(() => {
-          onClose();
+          onClose && onClose();
         }, 2000);
         return () => clearTimeout(timer);
       }
@@ -34,13 +33,24 @@ const CustomAlert = ({ visible, type, message, onClose, autoClose = false }) => 
             <AlertCircle color="#D32F2F" size={32} />
           )}
         </View>
-        
+
         <Text style={styles.message}>{message}</Text>
 
-        {!autoClose && (
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeButtonText}>Đóng</Text>
-          </TouchableOpacity>
+        {confirmMode ? (
+          <View style={styles.confirmRow}>
+            <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: '#EEE' }]} onPress={() => onClose && onClose()}>
+              <Text style={styles.confirmText}>{cancelText}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: isSuccess ? '#E8F5E9' : '#FDECEF' }]} onPress={() => onConfirm && onConfirm()}>
+              <Text style={[styles.confirmText, { color: isSuccess ? '#2E7D32' : '#E53935' }]}>{confirmText}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          !autoClose && (
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.closeButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          )
         )}
       </Animated.View>
     </View>
@@ -53,7 +63,10 @@ const styles = StyleSheet.create({
   iconContainer: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
   message: { fontSize: 16, textAlign: 'center', color: '#333', marginBottom: 20, fontWeight: '500' },
   closeButton: { backgroundColor: '#333', paddingVertical: 10, paddingHorizontal: 30, borderRadius: 10 },
-  closeButtonText: { color: 'white', fontWeight: 'bold' }
+  closeButtonText: { color: 'white', fontWeight: 'bold' },
+  confirmRow: { flexDirection: 'row', width: '100%', justifyContent: 'space-between' },
+  confirmBtn: { flex: 1, paddingVertical: 10, marginHorizontal: 6, borderRadius: 10, alignItems: 'center' },
+  confirmText: { fontWeight: '700' },
 });
 
 export default CustomAlert;

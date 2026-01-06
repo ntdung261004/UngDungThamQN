@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Calendar, Phone, Shield, Bookmark, UserCheck, UserMi
 import { COLORS } from '../../../../constants/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { baseUrl } from '../../../../constants/config';
+import CustomAlert from '../../../../components/CustomAlert';
 
 export default function SoldierDetail() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export default function SoldierDetail() {
   const currentUser = params.currentUser ? JSON.parse(params.currentUser) : null;
   
   const [hasRegisteredRelative, setHasRegisteredRelative] = useState(null);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [actionAlert, setActionAlert] = useState({ visible: false, type: 'success', message: '' });
 
   useEffect(() => {
     let mounted = true;
@@ -86,10 +89,13 @@ export default function SoldierDetail() {
             </View>
 
             <View style={styles.actionRow}>
-              <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => { /* placeholder */ }}>
+              <TouchableOpacity style={[styles.actionBtn, { marginRight: 8 }]} onPress={() => {
+                // navigate to AddSoldier in edit mode with soldier data
+                router.push({ pathname: '/AddSoldier', params: { soldier: JSON.stringify(soldier), currentUser: JSON.stringify(currentUser) } });
+              }}>
                 <Text style={styles.actionBtnText}>Sửa thông tin</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FDECEF' }]} onPress={() => { /* placeholder */ }}>
+              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FDECEF' }]} onPress={() => { setShowConfirmDelete(true); }}>
                 <Text style={[styles.actionBtnText, { color: '#E53935' }]}>Xóa</Text>
               </TouchableOpacity>
             </View>
@@ -104,6 +110,36 @@ export default function SoldierDetail() {
           <InfoItem icon={MapPin} label="Quê quán" value={soldier.address} />
         </View>
       </ScrollView>
+      <CustomAlert
+        visible={showConfirmDelete}
+        type={'error'}
+        message={'Bạn có chắc muốn xóa chiến sĩ này không?'}
+        confirmMode={true}
+        confirmText={'Xóa'}
+        cancelText={'Hủy'}
+        onClose={() => setShowConfirmDelete(false)}
+        onConfirm={async () => {
+          try {
+            setShowConfirmDelete(false);
+            const uid = currentUser.id || currentUser._id;
+            const res = await fetch(`${baseUrl}/soldiers/${soldier._id}`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: uid })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              setActionAlert({ visible: true, type: 'success', message: 'Xóa thành công' });
+              setTimeout(() => { setActionAlert({ ...actionAlert, visible: false }); router.replace('/home?tab=List'); }, 1200);
+            } else {
+              setActionAlert({ visible: true, type: 'error', message: data.message || 'Lỗi xóa' });
+            }
+          } catch (e) {
+            setActionAlert({ visible: true, type: 'error', message: 'Lỗi kết nối' });
+          }
+        }}
+      />
+      <CustomAlert visible={actionAlert.visible} type={actionAlert.type} message={actionAlert.message} onClose={() => setActionAlert({ ...actionAlert, visible: false })} autoClose={true} />
     </SafeAreaView>
   );
 }

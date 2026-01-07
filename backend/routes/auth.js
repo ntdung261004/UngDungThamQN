@@ -118,37 +118,61 @@ router.get('/overview-stats/:userId', async (req, res) => {
 // PHẦN 2: QUẢN LÝ SOLDIER (CHIẾN SĨ)
 // =============================================================
 
-// --- API THÊM CHIẾN SĨ (Vào bảng Soldier riêng) ---
+// --- API LẤY DANH SÁCH CHIẾN SĨ (Dùng Regex linh hoạt) ---
+router.get('/soldiers/:userId', async (req, res) => {
+    try {
+        const currentUser = await User.findById(req.params.userId);
+        if (!currentUser) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+
+        let filter = { rootCode: currentUser.rootCode };
+        
+        if (!currentUser.isAdmin) {
+            // Cải tiến: Tìm tất cả chiến sĩ mà unitPath chứa mã đơn vị của cán bộ
+            // Ví dụ: Cán bộ c10-d6 sẽ thấy lính có unitPath là "a1-b1-c10-d6" hoặc "c10-d6"
+            filter.unitPath = new RegExp(currentUser.unitPath, 'i');
+        }
+
+        const soldiers = await Soldier.find(filter).sort({ unitPath: 1, fullName: 1 });
+        res.json({ soldiers });
+    } catch (err) {
+        res.status(500).json({ message: "Lỗi lấy danh sách" });
+    }
+});
+
+// --- API THÊM CHIẾN SĨ (Tối ưu hóa sự đồng bộ UnitPath) ---
 router.post('/soldiers', async (req, res) => {
     try {
-        const { fullName, rank, position, unitCode, unitPath, rootCode, phoneRelative, dob, enlistDate, address, avatar, createdBy } = req.body;
+        let { 
+            fullName, rank, position, unitCode, unitPath, 
+            rootCode, phoneRelative, dob, enlistDate, 
+            address, avatar, createdBy 
+        } = req.body;
+
+        // BƯỚC QUAN TRỌNG: Kiểm tra và đồng bộ UnitPath
+        // Nếu unitCode (ví dụ: c10-d6) chưa có trong unitPath (ví dụ: d6)
+        // thì phải cập nhật unitPath của chiến sĩ thành unitCode để cấp dưới thấy được.
+        let finalPath = unitPath.trim().toLowerCase();
+        let finalCode = unitCode.trim().toLowerCase();
+
+        if (!finalPath.includes(finalCode)) {
+            // Nếu người dùng nhập unitCode chi tiết hơn unitPath, ưu tiên unitCode làm path
+            finalPath = finalCode;
+        }
+
+        // Chuẩn hóa dấu gạch ngang
+        finalPath = finalPath.replace(/[\s\/]/g, '-');
 
         const newSoldier = new Soldier({
-            fullName, rank, position, unitCode, unitPath, rootCode, 
-            phoneRelative, dob, enlistDate, address, avatar, createdBy
+            fullName, rank, position, 
+            unitCode: finalCode, 
+            unitPath: finalPath, 
+            rootCode, phoneRelative, dob, enlistDate, address, avatar, createdBy
         });
 
         await newSoldier.save();
         res.status(200).json({ message: "Thêm chiến sĩ thành công" });
     } catch (err) {
-        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
-    }
-});
-
-// --- API LẤY DANH SÁCH CHIẾN SĨ (Từ bảng Soldier) ---
-router.get('/soldiers/:userId', async (req, res) => {
-    try {
-        const currentUser = await User.findById(req.params.userId);
-        let filter = { rootCode: currentUser.rootCode };
-        
-        if (!currentUser.isAdmin) {
-            filter.unitPath = new RegExp(currentUser.unitPath, 'i');
-        }
-
-        const soldiers = await Soldier.find(filter).sort({ createdAt: -1 });
-        res.json({ soldiers });
-    } catch (err) {
-        res.status(500).json({ message: "Lỗi lấy danh sách" });
+        res.status(500).json({ message: "Lỗi thêm chiến sĩ: " + err.message });
     }
 });
 
@@ -230,4 +254,44 @@ router.delete('/soldiers/:id', async (req, res) => {
     }
 });
 
+// --- API CẬP NHẬT HỒ SƠ LẦN ĐẦU ---
+router.put('/update-profile', async (req, res) => {
+    try {
+        const { userId, fullName, rank, position, unitCode } = req.body;
+
+        // Kiểm tra userId có tồn tại không
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "Không tìm thấy người dùng" });
+        }
+
+        // Cập nhật thông tin
+        user.fullName = fullName;
+        user.rank = rank;
+        user.position = position;
+        user.unitCode = unitCode;
+        user.isProfileUpdated = true; // Đánh dấu đã cập nhật hồ sơ
+
+        await user.save();
+
+        res.json({
+            message: "Cập nhật hồ sơ thành công",
+            user: {
+                id: user._id,
+                fullName: user.fullName,
+                rank: user.rank,
+                position: user.position,
+                unitCode: user.unitCode,
+                isProfileUpdated: user.isProfileUpdated,
+                role: user.role,
+                rootCode: user.rootCode,
+                unitPath: user.unitPath,
+                isApproved: user.isApproved
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Lỗi Server khi cập nhật hồ sơ" });
+    }
+});
 module.exports = router;

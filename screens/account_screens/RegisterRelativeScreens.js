@@ -1,24 +1,25 @@
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Hash, Lock, MapPin, RotateCcw, Smartphone, User } from 'lucide-react-native';
+import { ChevronLeft, Lock, Smartphone, User, Hash } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import CustomInput from '../../components/CustomInput';
 import { COLORS } from '../../constants/theme';
+import axios from 'axios';
+import { API_CONFIG } from '../../constants/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RegisterRelativeScreens = () => {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
-  // State quản lý dữ liệu nhập
-  const [unitCode, setUnitCode] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [unitPath, setUnitPath] = useState('');
+  const [rootCode, setRootCode] = useState(''); 
+  const [fullName, setFullName] = useState(''); // Tên chiến sĩ
+  const [phone, setPhone] = useState('');       // SĐT người thân
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleRegister = () => {
-    // Kiểm tra dữ liệu
-    if (!unitCode || !fullName || !phone || !unitPath || !password) {
+  const handleRegister = async () => {
+    if (!rootCode || !fullName || !phone || !password) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
       return;
     }
@@ -28,17 +29,36 @@ const RegisterRelativeScreens = () => {
       return;
     }
 
-    // Chuyển sang OTP
-    router.push({
-      pathname: '/otp_verification',
-      params: { phone: phone, type: 'register' }
-    });
+    setLoading(true);
+    try {
+      // Gọi API đăng ký và kiểm tra dữ liệu trực tiếp
+      const response = await axios.post(`${API_CONFIG.BASE_URL}/auth/register-relative`, {
+        fullName,
+        phone,
+        password,
+        rootCode
+      });
+
+      if (response.status === 200) {
+        Alert.alert("Thành công", "Xác thực dữ liệu chính xác. Đang đăng nhập...");
+        
+        // Lưu thông tin user và chuyển thẳng vào Home
+        const userData = response.data.user;
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        
+        router.replace('/home');
+      }
+    } catch (error) {
+      const msg = error.response?.data?.message || "Lỗi kết nối máy chủ";
+      Alert.alert("Đăng ký thất bại", msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ChevronLeft size={28} color={COLORS.textDark} />
@@ -47,71 +67,28 @@ const RegisterRelativeScreens = () => {
           <View style={{ width: 28 }} />
         </View>
 
-        <Text style={styles.label}>Mã định danh đơn vị</Text>
-        <CustomInput 
-          icon={Hash} 
-          placeholder="Dán mã do con em cấp" 
-          autoCapitalize="characters"
-          value={unitCode}
-          onChangeText={setUnitCode}
-        />
+        <Text style={styles.label}>Mã định danh đơn vị (Ví dụ: d6)</Text>
+        <CustomInput icon={Hash} placeholder="Nhập mã đơn vị quản lý" value={rootCode} onChangeText={setRootCode} />
 
-        <Text style={styles.label}>Họ và tên người thân</Text>
-        <CustomInput 
-          icon={User} 
-          placeholder="Nhập họ tên của bạn" 
-          value={fullName}
-          onChangeText={setFullName}
-        />
+        <Text style={styles.label}>Họ và tên Chiến sĩ (Con/Em)</Text>
+        <CustomInput icon={User} placeholder="Nhập đúng họ tên chiến sĩ" value={fullName} onChangeText={setFullName} />
 
-        <Text style={styles.label}>Số điện thoại</Text>
-        <CustomInput 
-          icon={Smartphone} 
-          placeholder="Dùng làm tài khoản đăng nhập" 
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={setPhone}
-        />
-
-        <Text style={styles.label}>Đơn vị con em (Unit Path)</Text>
-        <CustomInput 
-          icon={MapPin} 
-          placeholder="Ví dụ: b1-c1-d4-e5" 
-          autoCapitalize="none"
-          value={unitPath}
-          onChangeText={setUnitPath}
-        />
+        <Text style={styles.label}>Số điện thoại của bạn (Người thân)</Text>
+        <CustomInput icon={Smartphone} placeholder="SĐT để đối chiếu dữ liệu" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
 
         <Text style={styles.label}>Mật khẩu</Text>
-        <CustomInput 
-          icon={Lock} 
-          placeholder="........" 
-          secureTextEntry={true} 
-          value={password}
-          onChangeText={setPassword}
-        />
+        <CustomInput icon={Lock} placeholder="Nhập mật khẩu" secureTextEntry value={password} onChangeText={setPassword} />
 
-        <Text style={styles.label}>Nhập lại mật khẩu</Text>
-        <CustomInput 
-          icon={RotateCcw} 
-          placeholder="Xác nhận mật khẩu" 
-          secureTextEntry={true} 
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-        />
+        <Text style={styles.label}>Xác nhận mật khẩu</Text>
+        <CustomInput icon={Lock} placeholder="Nhập lại mật khẩu" secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} />
 
         <TouchableOpacity 
           style={[styles.registerButton, { backgroundColor: '#FF5252' }]} 
-          activeOpacity={0.8}
           onPress={handleRegister}
+          disabled={loading}
         >
-          <Text style={styles.registerButtonText}>Đăng ký & Kết nối</Text>
+          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.registerButtonText}>Đăng ký & Đăng nhập</Text>}
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.footerLink} onPress={() => router.push('/login')}>
-          <Text style={styles.footerText}>Đã có tài khoản? <Text style={[styles.link, {color: '#FF5252'}]}>Đăng nhập</Text></Text>
-        </TouchableOpacity>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -123,12 +100,9 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   backButton: { padding: 10, marginLeft: -10 },
   headerTitleText: { fontSize: 18, fontWeight: 'bold', color: COLORS.textDark },
-  label: { fontSize: 15, fontWeight: '600', color: COLORS.textDark, marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: '600', color: COLORS.textDark, marginBottom: 8, marginTop: 10 },
   registerButton: { height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
-  registerButtonText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
-  footerLink: { marginTop: 20, marginBottom: 40, alignItems: 'center' },
-  footerText: { color: COLORS.textGrey, fontSize: 14 },
-  link: { fontWeight: 'bold' }
+  registerButtonText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' }
 });
 
 export default RegisterRelativeScreens;

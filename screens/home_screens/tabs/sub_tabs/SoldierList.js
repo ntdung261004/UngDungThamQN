@@ -26,7 +26,7 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
       if (!key) return;
       map[key] = (map[key] || 0) + 1;
     });
-    return Object.entries(map).sort((a,b) => b[1]-a[1]); // [ [hometown, count], ... ]
+    return Object.entries(map).sort((a,b) => b[1]-a[1]);
   }, [soldiers]);
 
   const enlistYearCounts = useMemo(() => {
@@ -40,21 +40,30 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
     return Object.entries(map).sort((a,b) => b[0]-a[0]);
   }, [soldiers]);
 
-  // derive unit list from soldiers
+  // TINH CHỈNH: Trích xuất danh sách đơn vị theo từng cấp bậc
   const unitCounts = useMemo(() => {
     const map = {};
     soldiers.forEach(s => {
-      const key = ((s.unitCode || s.unitPath) || '').trim();
-      if (!key) return;
-      map[key] = (map[key] || 0) + 1;
+      const fullPath = (s.unitPath || s.unitCode || '').trim();
+      if (!fullPath) return;
+
+      // Tách chuỗi a10-b5-c10-d6 thành mảng các cấp đơn vị
+      const parts = fullPath.split('-');
+      
+      // Tạo ra các đầu mối gộp: d6, c10-d6, b5-c10-d6, a10-b5-c10-d6
+      let currentPath = '';
+      for (let i = parts.length - 1; i >= 0; i--) {
+        currentPath = currentPath ? `${parts[i]}-${currentPath}` : parts[i];
+        map[currentPath] = (map[currentPath] || 0) + 1;
+      }
     });
-    return Object.entries(map).sort((a,b) => b[1]-a[1]);
+    // Sắp xếp theo tên đơn vị để dễ tìm kiếm trong modal
+    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0]));
   }, [soldiers]);
 
   const ranks = ["Binh nhì", "Binh nhất", "Hạ sĩ", "Trung sĩ", "Thượng sĩ"];
   const positions = ["Chiến sĩ", "Tiểu đội trưởng", "Khẩu đội trưởng"];
 
-  // Logic viết tắt Cấp bậc & Chức vụ
   const getRankAbbr = (rank) => {
     const map = { 'Binh nhì': 'BN', 'Binh nhất': 'B1', 'Hạ sĩ': 'H1', 'Trung sĩ': 'H2', 'Thượng sĩ': 'H3' };
     return map[rank] || rank;
@@ -66,35 +75,26 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
 
   const checkRegistered = (phone) => officers.some(u => u.phone === phone);
 
-  // New filteredData uses both searchQuery and filterConfig
+  // Filter logic (Sử dụng includes để lọc gộp)
   const filteredData = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
 
     const results = soldiers.filter(s => {
-      // search across fields
       const haystack = [s.fullName, s.unitCode, s.unitPath, s.address, s.phoneRelative].filter(Boolean).join(' ').toLowerCase();
       if (q && !haystack.includes(q)) return false;
 
-      // ranks filter
       if (filterConfig.ranks && filterConfig.ranks.length > 0 && !filterConfig.ranks.includes(s.rank)) return false;
-
-      // positions filter
       if (filterConfig.positions && filterConfig.positions.length > 0 && !filterConfig.positions.includes(s.position)) return false;
-
-      // hasRelative filter
       if (filterConfig.hasRelative === true && !checkRegistered(s.phoneRelative)) return false;
       if (filterConfig.hasRelative === false && checkRegistered(s.phoneRelative)) return false;
-
-      // hometown filter (new)
       if (filterConfig.hometown && !s.address.toLowerCase().includes(filterConfig.hometown.toLowerCase())) return false;
-
-      // enlistYear filter (new)
       if (filterConfig.enlistYear && new Date(s.enlistDate || s.enlist).getFullYear() !== Number(filterConfig.enlistYear)) return false;
 
-      // unit filter (exact match to selected unit)
+      // Lọc gộp đơn vị: Nếu đơn vị được chọn nằm trong chuỗi unitPath của chiến sĩ
       if (filterConfig.unit) {
-        const u = (s.unitCode || s.unitPath || '').trim();
-        if (!u || u !== filterConfig.unit) return false;
+        const soldierPath = (s.unitPath || s.unitCode || '').trim().toLowerCase();
+        const selectedUnit = filterConfig.unit.trim().toLowerCase();
+        if (!soldierPath.includes(selectedUnit)) return false;
       }
 
       return true;
@@ -109,22 +109,18 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
     });
 
     return results;
-  }, [soldiers, searchQuery, filterConfig, officers, currentUser]);
+  }, [soldiers, searchQuery, filterConfig, officers]);
 
   const renderItem = ({ item }) => {
     const isReg = checkRegistered(item.phoneRelative);
-
     const formatEnlist = (val) => {
       if (!val) return '';
       try {
         const d = new Date(val);
         if (isNaN(d.getTime())) return '';
-        const mm = ("0" + (d.getMonth() + 1)).slice(-2);
-        const yyyy = d.getFullYear();
-        return `NN:${mm}/${yyyy}`;
+        return `NN:${("0" + (d.getMonth() + 1)).slice(-2)}/${d.getFullYear()}`;
       } catch (e) { return ''; }
     };
-
     const enlistLabel = formatEnlist(item.enlistDate || item.enlist);
 
     return (
@@ -133,7 +129,6 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
         onPress={() => router.push({ pathname: '/SoldierDetail', params: { soldier: JSON.stringify(item), currentUser: JSON.stringify(currentUser) } })}
       >
         <View style={styles.cardHeader}>
-          {/* Avatar */}
           <View style={styles.avatarWrap}>
             {item.avatar ? (
               <Image source={{ uri: item.avatar }} style={styles.avatarLarge} />
@@ -147,13 +142,9 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
           <View style={styles.infoCol}>
             <Text style={styles.rankSmall}>{item.rank}</Text>
             <Text style={styles.nameSmall}>{item.fullName}</Text>
-
-            {/* Position row without status tag */}
             <View style={styles.subInfoRow}>
               <Text style={[styles.subInfo, { flex: 1 }]} numberOfLines={1}>{getPosAbbr(item.position)}</Text>
             </View>
-
-            {/* Unit row on its own line with status tag at the right */}
             <View style={styles.unitRow}>
               <Text style={styles.unitText}>Đơn vị: {item.unitCode}</Text>
               <View style={styles.inlineStatusRight}>
@@ -163,7 +154,6 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
                 </View>
               </View>
             </View>
-
           </View>
         </View>
 
@@ -173,11 +163,9 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
               <MapPin size={14} color="#888" />
               <Text style={styles.locText} numberOfLines={1}>{item.address}{enlistLabel ? ` • ${enlistLabel}` : ''}</Text>
             </View>
-            {/* removed inline chevron from here to allow absolute positioning */}
           </View>
         </View>
 
-        {/* Chevron anchored to the far right-bottom of the card */}
         <View style={styles.chevronAbsolute} pointerEvents="none">
           <ChevronRight size={18} color="#CCC" />
         </View>
@@ -203,7 +191,6 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
         </View>
       </View>
 
-      {/* Filter modal */}
       <Modal visible={showFilterModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -242,27 +229,8 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
                  <TouchableOpacity onPress={() => setFilterConfig(prev => ({ ...prev, hasRelative: false }))} style={styles.modalRowSmall}><Text>Chưa có</Text><Text>{filterConfig.hasRelative === false ? '✓' : ''}</Text></TouchableOpacity>
                </View>
 
-              <Text style={[styles.modalSectionTitle]}>Quê quán</Text>
-              {hometownCounts.length === 0 ? (
-                <Text style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>Không có dữ liệu</Text>
-              ) : hometownCounts.map(([name, count]) => (
-                <TouchableOpacity key={name} style={styles.modalRow} onPress={() => setFilterConfig(prev => ({ ...prev, hometown: prev.hometown === name ? '' : name }))}>
-                  <Text style={styles.modalLabel}>{name} <Text style={{ color: '#AAA' }}>({count})</Text></Text>
-                  <Text>{filterConfig.hometown === name ? '✓' : ''}</Text>
-                </TouchableOpacity>
-              ))}
-
-              <Text style={[styles.modalSectionTitle]}>Năm nhập ngũ</Text>
-              {enlistYearCounts.length === 0 ? (
-                <Text style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>Không có dữ liệu</Text>
-              ) : enlistYearCounts.map(([year, count]) => (
-                <TouchableOpacity key={year} style={styles.modalRow} onPress={() => setFilterConfig(prev => ({ ...prev, enlistYear: prev.enlistYear === year ? '' : year }))}>
-                  <Text style={styles.modalLabel}>{year} <Text style={{ color: '#AAA' }}>({count})</Text></Text>
-                  <Text>{filterConfig.enlistYear === year ? '✓' : ''}</Text>
-                </TouchableOpacity>
-              ))}
-
-              <Text style={[styles.modalSectionTitle]}>Đơn vị</Text>
+              {/* MỤC ĐƠN VỊ ĐÃ ĐƯỢC TỐI ƯU GỘP ĐẦU MỐI */}
+              <Text style={[styles.modalSectionTitle]}>Lọc theo đơn vị (Cấp gộp)</Text>
               {unitCounts.length === 0 ? (
                 <Text style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>Không có dữ liệu</Text>
               ) : unitCounts.map(([name, count]) => (
@@ -271,10 +239,18 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
                   <Text>{filterConfig.unit === name ? '✓' : ''}</Text>
                 </TouchableOpacity>
               ))}
+
+              <Text style={[styles.modalSectionTitle]}>Quê quán</Text>
+              {hometownCounts.map(([name, count]) => (
+                <TouchableOpacity key={name} style={styles.modalRow} onPress={() => setFilterConfig(prev => ({ ...prev, hometown: prev.hometown === name ? '' : name }))}>
+                  <Text style={styles.modalLabel}>{name} <Text style={{ color: '#AAA' }}>({count})</Text></Text>
+                  <Text>{filterConfig.hometown === name ? '✓' : ''}</Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-              <TouchableOpacity style={styles.modalBtn} onPress={() => { setFilterConfig({ ranks: [], positions: [], hasRelative: null, hometown: '', enlistYear: '' }); }}>
+              <TouchableOpacity style={styles.modalBtn} onPress={() => { setFilterConfig({ ranks: [], positions: [], hasRelative: null, hometown: '', enlistYear: '', unit: '' }); }}>
                 <Text style={styles.modalBtnText}>Xóa</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: COLORS.primary }]} onPress={() => setShowFilterModal(false)}>
@@ -288,11 +264,7 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
       <View style={styles.summaryBox}>
         <Text style={styles.summaryText}>Tổng số: <Text style={{fontWeight:'bold'}}>{filteredData.length}</Text> chiến sĩ</Text>
       </View>
-      {/* Active filter summary */}
-      <View style={{ paddingHorizontal: 15, paddingBottom: 6 }}>
-        <Text style={{ fontSize: 12, color: '#666' }}>{getFilterSummary(filterConfig, currentUser)}</Text>
-      </View>
-
+      
       <FlatList
         data={filteredData}
         keyExtractor={item => item._id}
@@ -301,7 +273,6 @@ export default function SoldierList({ soldiers = [], officers = [], currentUser 
         ListEmptyComponent={<Text style={styles.empty}>Không có dữ liệu chiến sĩ</Text>}
       />
 
-      {/* Nút Thêm Mới (FAB) neo ở dưới */}
       <TouchableOpacity 
         style={styles.fab}
         onPress={() => router.push({
@@ -321,7 +292,6 @@ const styles = StyleSheet.create({
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F3F5', paddingHorizontal: 12, borderRadius: 10, height: 45, flex: 1 },
   input: { flex: 1, marginLeft: 8, fontSize: 14, color: '#333' },
   filterBtn: { marginLeft: 8, backgroundColor: COLORS.primary, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
-  filterBtnText: { color: '#FFF', fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '90%', backgroundColor: '#FFF', borderRadius: 12, padding: 16 },
   modalTitle: { fontWeight: '700', fontSize: 16, marginBottom: 8 },
@@ -358,7 +328,6 @@ const styles = StyleSheet.create({
   empty: { textAlign: 'center', marginTop: 50, color: '#999' }
 });
 
-// helper for filter summary
 function getFilterSummary(cfg, currentUser) {
   const parts = [];
   if (cfg.ranks && cfg.ranks.length) parts.push(`Cấp bậc: ${cfg.ranks.join(', ')}`);

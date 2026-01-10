@@ -9,12 +9,83 @@ const Soldier = require('../models/Soldier');
 // PHẦN 1: QUẢN LÝ USER (CÁN BỘ & THÂN NHÂN)
 // =============================================================
 
-// --- ĐĂNG KÝ USER ---
+/**
+ * @route   POST api/auth/register-relative
+ * @desc    Đăng ký cho thân nhân - Kiểm tra trực tiếp dữ liệu chiến sĩ (Không OTP)
+ */
+router.post('/register-relative', async (req, res) => {
+    try {
+        const { fullName, phone, password, rootCode } = req.body;
+
+        // 1. Kiểm tra SĐT đã tồn tại trong hệ thống chưa
+        let userExists = await User.findOne({ phone, rootCode });
+        if (userExists) {
+            return res.status(400).json({ message: "Số điện thoại này đã được đăng ký tài khoản!" });
+        }
+
+        // 2. Đối chiếu với bảng Soldier (Xác thực danh tính người thân)
+        // fullName: Tên chiến sĩ, phone: SĐT người thân nhập vào
+        const soldier = await Soldier.findOne({ 
+            fullName: fullName.trim(), 
+            phoneRelative: phone.trim(),
+            rootCode: rootCode.trim() 
+        });
+
+        if (!soldier) {
+            return res.status(400).json({ 
+                message: "Xác thực thất bại! Thông tin chiến sĩ hoặc số điện thoại người thân không khớp với dữ liệu đơn vị." 
+            });
+        }
+
+        // 3. Khởi tạo tài khoản mới dựa trên dữ liệu chiến sĩ đã khớp
+        const newUser = new User({
+            fullName: fullName.trim(), // Lưu tên chiến sĩ vào trường fullName của User để định danh
+            phone: phone.trim(),
+            password: password,
+            role: 'relative',
+            rootCode: soldier.rootCode,
+            unitCode: soldier.unitCode,
+            unitPath: soldier.unitPath,
+            soldierId: soldier._id, // Liên kết trực tiếp với bản ghi chiến sĩ
+            isApproved: true,       // Khớp dữ liệu thì cho phép hoạt động ngay
+            isProfileUpdated: false
+        });
+
+        // 4. Mã hóa mật khẩu
+        const salt = await bcrypt.genSalt(10);
+        newUser.password = await bcrypt.hash(password, salt);
+        
+        await newUser.save();
+
+        // 5. Trả về thông tin đăng nhập thành công
+        res.status(200).json({ 
+            message: "Đăng ký thành công!",
+            user: {
+                id: newUser._id,
+                fullName: newUser.fullName,
+                role: newUser.role,
+                rootCode: newUser.rootCode,
+                unitCode: newUser.unitCode,
+                isProfileUpdated: newUser.isProfileUpdated
+            }
+        });
+
+    } catch (err) {
+        console.error("Lỗi đăng ký người thân:", err);
+        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
+    }
+});
+
+/**
+ * @route   POST api/auth/register (Dành cho cán bộ)
+ * @desc    Đăng ký tài khoản cán bộ - Cần chờ phê duyệt
+ */
 router.post('/register', async (req, res) => {
     try {
         const { fullName, phone, password, role, rootCode, unitCode, unitPath } = req.body;
-        let user = await User.findOne({ phone, rootCode });
-        if (user) return res.status(400).json({ message: "Số điện thoại đã được đăng ký trong đơn vị này!" });
+        
+        let userExists = await User.findOne({ phone, rootCode });
+        if (userExists) return res.status(400).json({ message: "Số điện thoại này đã được đăng ký!" });
 
         const newUser = new User({
             fullName, phone, password, role, rootCode, unitCode, unitPath,
@@ -25,7 +96,8 @@ router.post('/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         newUser.password = await bcrypt.hash(password, salt);
         await newUser.save();
-        res.status(200).json({ message: "Đăng ký thành công! Vui lòng chờ phê duyệt." });
+
+        res.status(200).json({ message: "Đăng ký thành công! Vui lòng chờ cán bộ cấp trên phê duyệt." });
     } catch (err) {
         res.status(500).json({ message: "Lỗi hệ thống đăng ký" });
     }
@@ -292,6 +364,36 @@ router.put('/update-profile', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Lỗi Server khi cập nhật hồ sơ" });
+    }
+});
+
+router.post('/check-relative', async (req, res) => {
+    try {
+        const { fullName, phone, rootCode } = req.body;
+
+        // 1. Kiểm tra SĐT đã có tài khoản nào đăng ký chưa
+        const userExists = await User.findOne({ phone, rootCode });
+        if (userExists) {
+            return res.status(400).json({ message: "Số điện thoại này đã được đăng ký tài khoản!" });
+        }
+
+        // 2. Kiểm tra khớp Tên chiến sĩ và SĐT người thân trong bảng Soldier
+        const soldier = await Soldier.findOne({ 
+            fullName: fullName.trim(), 
+            phoneRelative: phone.trim(),
+            rootCode: rootCode.trim() 
+        });
+
+        if (!soldier) {
+            return res.status(400).json({ 
+                message: "Thông tin không khớp! Vui lòng kiểm tra lại Họ tên chiến sĩ và Số điện thoại của bạn." 
+            });
+        }
+
+        // Nếu mọi thứ ổn
+        res.status(200).json({ message: "Thông tin hợp lệ", soldierId: soldier._id });
+    } catch (err) {
+        res.status(500).json({ message: "Lỗi kiểm tra dữ liệu" });
     }
 });
 module.exports = router;

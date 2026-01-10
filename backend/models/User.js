@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
-  fullName: { type: String, required: true },
+  fullName: { type: String, required: true }, // Đối với người thân, đây sẽ là tên chiến sĩ để dễ quản lý
   phone: { type: String, required: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['canbo', 'relative', 'soldier'], required: true },
@@ -11,21 +11,20 @@ const UserSchema = new mongoose.Schema({
   isAdmin: { type: Boolean, default: false },
   isApproved: { type: Boolean, default: false },
 
-  // --- CÁC TRƯỜNG MỚI BỔ SUNG ---
-  rank: { type: String, default: "" },      // Cấp bậc (VD: Thượng úy)
-  position: { type: String, default: "" },  // Chức vụ (VD: Đại đội trưởng)
-  avatar: { type: String, default: "" },    // Link ảnh đại diện
-  isProfileUpdated: { type: Boolean, default: false }, // Đánh dấu đã cập nhật thông tin lần đầu chưa
+  // --- CÁC TRƯỜNG BỔ SUNG ---
+  rank: { type: String, default: "" },      
+  position: { type: String, default: "" },  
+  avatar: { type: String, default: "" },    
+  isProfileUpdated: { type: Boolean, default: false }, 
 
-  // --- Trường dành cho CHIẾN SĨ ---
-  soldierId: { type: String, default: "" },      // Mã chiến sĩ/ID nội bộ
-  phoneRelative: { type: String, default: "" },  // SĐT người nhà
-  dob: { type: Date },                             // Ngày sinh
-  enlistDate: { type: Date },                      // Ngày nhập ngũ
-  address: { type: String, default: "" },        // Nơi ở
+  // --- Trường dành cho CHIẾN SĨ/THÂN NHÂN ---
+  soldierId: { type: String, default: "" },      // Liên kết tới _id của bảng Soldier
+  phoneRelative: { type: String, default: "" },  
+  dob: { type: Date },                             
+  enlistDate: { type: Date },                      
+  address: { type: String, default: "" },        
 
   createdAt: { type: Date, default: Date.now }
 });
 
-UserSchema.index({ phone: 1, rootCode: 1 }, { unique: true });
 module.exports = mongoose.model('User', UserSchema);

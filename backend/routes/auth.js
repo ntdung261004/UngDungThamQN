@@ -61,6 +61,38 @@ router.post('/login', async (req, res) => {
     } catch (err) { res.status(500).json({ message: "Lỗi Server" }); }
 });
 
+// --- CẬP NHẬT HỒ SƠ ---
+router.put('/update-profile', async (req, res) => {
+    try {
+        const { userId, fullName, rank, position, unitCode } = req.body;
+
+        // Tìm User theo ID và cập nhật các trường thông tin
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { 
+                fullName, 
+                rank, 
+                position, 
+                unitCode, 
+                isProfileUpdated: true // Đánh dấu là đã cập nhật
+            },
+            { new: true } // Tham số này để trả về dữ liệu user mới nhất sau khi sửa
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: "Không tìm thấy người dùng" });
+        }
+
+        res.status(200).json({ 
+            message: "Cập nhật hồ sơ thành công", 
+            user: updatedUser 
+        });
+    } catch (err) {
+        console.error("Lỗi cập nhật profile:", err);
+        res.status(500).json({ message: "Lỗi hệ thống khi cập nhật hồ sơ" });
+    }
+});
+
 // --- API DANH SÁCH CÁN BỘ CHỜ DUYỆT (Sửa lỗi 404) ---
 router.get('/pending-officers/:userId', async (req, res) => {
     try {

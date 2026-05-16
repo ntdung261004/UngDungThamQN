@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, SafeAreaView, ScrollView } from 'react-native';
-import { LayoutGrid, CalendarDays, Users, MessageSquare, UserCircle, Newspaper, LogOut } from 'lucide-react-native';
+import { useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// Thêm dòng này vào
+import { CalendarDays, LayoutGrid, LogOut, MessageSquare, Newspaper, UserCircle, Users } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../constants/theme';
 
 // Import các Tab con
-import OverviewTab from './tabs/OverviewTab';
-import ScheduleTab from './tabs/ScheduleTab';
-import ListTab from './tabs/ListTab'; 
-import PostTab from './tabs/PostTab';
-import ContactTab from './tabs/ContactTab';
 import AccountTab from './tabs/AccountTab';
+import ContactTab from './tabs/ContactTab';
+import ListTab from './tabs/ListTab';
+import OverviewTab from './tabs/OverviewTab';
+import PostTab from './tabs/PostTab';
+import ScheduleTab from './tabs/ScheduleTab';
 
 const HomeCanBo = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('Overview');

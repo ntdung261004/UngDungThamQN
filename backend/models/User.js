@@ -11,21 +11,21 @@ const UserSchema = new mongoose.Schema({
   isAdmin: { type: Boolean, default: false },
   isApproved: { type: Boolean, default: false },
 
-  // --- CÁC TRƯỜNG MỚI BỔ SUNG ---
-  rank: { type: String, default: "" },      // Cấp bậc (VD: Thượng úy)
-  position: { type: String, default: "" },  // Chức vụ (VD: Đại đội trưởng)
-  avatar: { type: String, default: "" },    // Link ảnh đại diện
-  isProfileUpdated: { type: Boolean, default: false }, // Đánh dấu đã cập nhật thông tin lần đầu chưa
+  // --- CÁC TRƯỜNG DÀNH CHO CÁN BỘ ---
+  rank: { type: String, default: "" },      
+  position: { type: String, default: "" },  
+  avatar: { type: String, default: "" },    
+  isProfileUpdated: { type: Boolean, default: false }, 
 
-  // --- Trường dành cho CHIẾN SĨ ---
-  soldierId: { type: String, default: "" },      // Mã chiến sĩ/ID nội bộ
-  phoneRelative: { type: String, default: "" },  // SĐT người nhà
-  dob: { type: Date },                             // Ngày sinh
-  enlistDate: { type: Date },                      // Ngày nhập ngũ
-  address: { type: String, default: "" },        // Nơi ở
+  // --- CÁC TRƯỜNG DÀNH CHO CHIẾN SĨ / THÂN NHÂN ---
+  soldierId: { type: String, default: "" },      // Để link Thân nhân với Chiến sĩ
+  phoneRelative: { type: String, default: "" },  
+  dob: { type: Date },                             
+  enlistDate: { type: Date },                      
+  address: { type: String, default: "" },
 
-  createdAt: { type: Date, default: Date.now }
-});
+  // --- [MỚI THÊM] TRƯỜNG RIÊNG CHO THÂN NHÂN ---
+  relationship: { type: String, default: "" }    // VD: Bố, Mẹ, Vợ, Anh/Chị
+}, { timestamps: true });
 
-UserSchema.index({ phone: 1, rootCode: 1 }, { unique: true });
 module.exports = mongoose.model('User', UserSchema);

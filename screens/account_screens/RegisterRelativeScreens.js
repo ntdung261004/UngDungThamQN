@@ -1,38 +1,60 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Hash, Lock, MapPin, RotateCcw, Smartphone, User } from 'lucide-react-native';
+import { ChevronLeft, Lock, RotateCcw, Smartphone } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomInput from '../../components/CustomInput';
 import { COLORS } from '../../constants/theme';
+
+// NHỚ ĐỔI IP CỦA BẠN VÀO ĐÂY
+const API_URL = 'http://192.168.1.100:5000';
 
 const RegisterRelativeScreens = () => {
   const router = useRouter();
 
-  // State quản lý dữ liệu nhập
-  const [unitCode, setUnitCode] = useState('');
-  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [unitPath, setUnitPath] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    // Kiểm tra dữ liệu
-    if (!unitCode || !fullName || !phone || !unitPath || !password) {
-      Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
+  const handleRegister = async () => {
+    if (!phone || !password) {
+      Alert.alert("Lỗi", "Vui lòng nhập Số điện thoại và Mật khẩu.");
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert("Lỗi", "Mật khẩu xác nhận không khớp.");
       return;
     }
 
-    // Chuyển sang OTP
-    router.push({
-      pathname: '/otp_verification',
-      params: { phone: phone, type: 'register' }
-    });
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/register-relative`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password })
+      });
+      
+      const data = await response.json();
+
+      if (response.ok) {
+        // Lưu token và user vào máy
+        await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Chuyển sang màn hình Setup Profile và truyền kèm thông tin chiến sĩ
+        router.push({
+          pathname: '/SetupProfileRelative',
+          params: { soldier: JSON.stringify(data.soldier) }
+        });
+      } else {
+        Alert.alert("Lỗi đăng ký", data.message);
+      }
+    } catch (error) {
+      Alert.alert("Lỗi kết nối", "Không thể kết nối đến máy chủ.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -47,42 +69,18 @@ const RegisterRelativeScreens = () => {
           <View style={{ width: 28 }} />
         </View>
 
-        <Text style={styles.label}>Mã định danh đơn vị</Text>
-        <CustomInput 
-          icon={Hash} 
-          placeholder="Dán mã do con em cấp" 
-          autoCapitalize="characters"
-          value={unitCode}
-          onChangeText={setUnitCode}
-        />
-
-        <Text style={styles.label}>Họ và tên người thân</Text>
-        <CustomInput 
-          icon={User} 
-          placeholder="Nhập họ tên của bạn" 
-          value={fullName}
-          onChangeText={setFullName}
-        />
+        <Text style={styles.subText}>Vui lòng nhập Số điện thoại mà bạn đã cung cấp cho chỉ huy đơn vị để xác thực.</Text>
 
         <Text style={styles.label}>Số điện thoại</Text>
         <CustomInput 
           icon={Smartphone} 
-          placeholder="Dùng làm tài khoản đăng nhập" 
+          placeholder="Nhập số điện thoại" 
           keyboardType="phone-pad"
           value={phone}
           onChangeText={setPhone}
         />
 
-        <Text style={styles.label}>Đơn vị con em (Unit Path)</Text>
-        <CustomInput 
-          icon={MapPin} 
-          placeholder="Ví dụ: b1-c1-d4-e5" 
-          autoCapitalize="none"
-          value={unitPath}
-          onChangeText={setUnitPath}
-        />
-
-        <Text style={styles.label}>Mật khẩu</Text>
+        <Text style={styles.label}>Tạo Mật khẩu</Text>
         <CustomInput 
           icon={Lock} 
           placeholder="........" 
@@ -101,11 +99,12 @@ const RegisterRelativeScreens = () => {
         />
 
         <TouchableOpacity 
-          style={[styles.registerButton, { backgroundColor: '#FF5252' }]} 
+          style={[styles.registerButton, { backgroundColor: '#FF5252' }, loading && { opacity: 0.7 }]} 
           activeOpacity={0.8}
           onPress={handleRegister}
+          disabled={loading}
         >
-          <Text style={styles.registerButtonText}>Đăng ký & Kết nối</Text>
+          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.registerButtonText}>Xác thực & Kết nối</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.footerLink} onPress={() => router.push('/login')}>
@@ -120,9 +119,10 @@ const RegisterRelativeScreens = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: { padding: 25, paddingTop: 50 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   backButton: { padding: 10, marginLeft: -10 },
   headerTitleText: { fontSize: 18, fontWeight: 'bold', color: COLORS.textDark },
+  subText: { fontSize: 14, color: '#666', marginBottom: 25, lineHeight: 20 },
   label: { fontSize: 15, fontWeight: '600', color: COLORS.textDark, marginBottom: 8 },
   registerButton: { height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   registerButtonText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },

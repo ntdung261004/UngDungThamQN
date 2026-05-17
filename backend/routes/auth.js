@@ -244,4 +244,79 @@ router.get('/overview-stats/:userId', async (req, res) => {
     }
 });
 
+// =============================================================
+// PHẦN 4: ĐĂNG KÝ VÀ CẬP NHẬT DÀNH CHO THÂN NHÂN
+// =============================================================
+
+// --- API ĐĂNG KÝ THÂN NHÂN ---
+router.post('/register-relative', async (req, res) => {
+    try {
+        const { phone, password } = req.body;
+        
+        // 1. Check trùng SĐT trong hệ thống
+        let existingUser = await User.findOne({ phone });
+        if (existingUser) return res.status(400).json({ message: "Số điện thoại này đã được đăng ký tài khoản!" });
+
+        // 2. Quét tìm SĐT trong danh sách Chiến sĩ đã được Cán bộ khai báo
+        const soldier = await Soldier.findOne({ phoneRelative: phone });
+        if (!soldier) {
+            return res.status(404).json({ message: "Số điện thoại này chưa được chỉ huy đơn vị khai báo. Vui lòng liên hệ đơn vị!" });
+        }
+
+        // 3. Tạo tài khoản tự động "ăn theo" mã đơn vị của Chiến sĩ
+        const newUser = new User({
+            fullName: "Thân nhân chiến sĩ", // Tên tạm, sẽ sửa ở bước Setup Profile
+            phone, 
+            password, 
+            role: 'relative', 
+            rootCode: soldier.rootCode, 
+            unitCode: soldier.unitCode, 
+            unitPath: soldier.unitPath,
+            soldierId: soldier._id, // Liên kết ID chiến sĩ
+            isAdmin: false,
+            isApproved: true, // Thân nhân không cần duyệt, auto true
+            isProfileUpdated: false
+        });
+
+        const salt = await bcrypt.genSalt(10);
+        newUser.password = await bcrypt.hash(password, salt);
+        await newUser.save();
+
+        // 4. Trả về Token để tự động Login và sang thẳng trang Setup Profile
+        const token = jwt.sign(
+            { id: newUser._id, role: newUser.role, rootCode: newUser.rootCode }, 
+            "secret", { expiresIn: '1d' }
+        );
+
+        res.status(200).json({ 
+            message: "Xác thực thành công!",
+            token,
+            user: {
+                id: newUser._id, phone: newUser.phone, role: newUser.role, 
+                rootCode: newUser.rootCode, unitCode: newUser.unitCode, unitPath: newUser.unitPath, 
+                soldierId: newUser.soldierId, isApproved: newUser.isApproved, isProfileUpdated: newUser.isProfileUpdated
+            },
+            soldier: soldier // Gửi kèm data chiến sĩ để hiện ở bước Setup
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Lỗi hệ thống đăng ký" });
+    }
+});
+
+// --- API CẬP NHẬT HỒ SƠ THÂN NHÂN (SETUP PROFILE) ---
+router.put('/update-relative-profile', async (req, res) => {
+    try {
+        const { userId, fullName, relationship, dob, avatar } = req.body;
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { fullName, relationship, dob, avatar, isProfileUpdated: true },
+            { new: true }
+        );
+        if (!updatedUser) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+        res.status(200).json({ message: "Cập nhật hồ sơ thành công", user: updatedUser });
+    } catch (err) {
+        res.status(500).json({ message: "Lỗi hệ thống khi cập nhật hồ sơ" });
+    }
+});
+
 module.exports = router;

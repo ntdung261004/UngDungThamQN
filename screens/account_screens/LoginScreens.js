@@ -1,9 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, HelpCircle, Lock, ShieldAlert, Smartphone } from 'lucide-react-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// Import AsyncStorage để lưu trạng thái đăng nhập
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Import các thành phần tùy chỉnh
 import CustomAlert from '../../components/CustomAlert';
 import CustomInput from '../../components/CustomInput';
 import { COLORS } from '../../constants/theme';
@@ -13,6 +15,7 @@ const LoginScreens = () => {
   // Lấy role từ màn hình trước truyền sang (VD: 'relative' hoặc 'canbo')
   const { role } = useLocalSearchParams(); 
 
+  // State quản lý dữ liệu nhập vào
   const [rootCode, setRootCode] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -25,9 +28,9 @@ const LoginScreens = () => {
   });
 
   const handleLogin = async () => {
-    // 1. KIỂM TRA LỖI TÙY THEO VAI TRÒ
+    // Kiểm tra tính hợp lệ của dữ liệu form tùy chọn theo vai trò đăng nhập
     if (role === 'relative') {
-      // Nếu là Thân nhân: Chỉ cần SĐT và Mật khẩu
+      // Vai trò Thân nhân: Chỉ yêu cầu SĐT và Mật khẩu
       if (!phone || !password) {
         setAlertConfig({ 
           visible: true, 
@@ -38,7 +41,7 @@ const LoginScreens = () => {
         return;
       }
     } else {
-      // Nếu là Cán bộ: Bắt buộc cả 3 trường
+      // Vai trò Cán bộ: Yêu cầu cả 3 trường thông tin
       if (!rootCode || !phone || !password) {
         setAlertConfig({ 
           visible: true, 
@@ -51,18 +54,17 @@ const LoginScreens = () => {
     }
 
     try {
-      // NHỚ ĐỔI ĐỊA CHỈ IP NÀY THÀNH IP CỦA BẠN
+      // LƯU Ý: Thay đổi IP này thành IP cứng của máy tính chạy Server của bạn
       const response = await fetch(`http://192.168.1.100:5000/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // API hiện tại chỉ cần gửi phone và password lên Backend
         body: JSON.stringify({ phone, password }) 
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Lưu token và thông tin user vào AsyncStorage
+        // Lưu trữ Token xác thực và thông tin hồ sơ User vào bộ nhớ máy
         await AsyncStorage.setItem('token', data.token);
         await AsyncStorage.setItem('user', JSON.stringify(data.user));
 
@@ -73,13 +75,9 @@ const LoginScreens = () => {
           autoClose: true 
         });
 
-        // Chuyển hướng theo role
+        // Chuyển hướng tài khoản vào màn hình chính sau khi thông báo thành công hiển thị
         setTimeout(() => {
-          if (data.user.role === 'relative') {
-            router.push('/home'); // Vào thẳng app của thân nhân
-          } else {
-            router.push('/home'); // Vào thẳng app của cán bộ
-          }
+          router.push('/home');
         }, 1500);
 
       } else {
@@ -116,7 +114,7 @@ const LoginScreens = () => {
 
         <View style={styles.form}>
           
-          {/* 2. ĐIỀU KIỆN HIỂN THỊ: Chỉ hiện Mã đơn vị khi KHÔNG phải là Thân nhân */}
+          {/* Chỉ hiển thị ô nhập Mã định danh nếu vai trò KHÔNG PHẢI là Thân nhân */}
           {role !== 'relative' && (
             <View>
               <Text style={styles.label}>Mã định danh đơn vị (*)</Text>
@@ -156,6 +154,19 @@ const LoginScreens = () => {
             <Text style={styles.loginText}>ĐĂNG NHẬP</Text>
           </TouchableOpacity>
           
+          {/* ĐÃ HOÀN TÁC: Khôi phục liên kết chuyển hướng đăng ký theo phân hệ vai trò thông minh */}
+          <TouchableOpacity 
+            style={styles.footerLink} 
+            onPress={() => router.push(role === 'relative' ? '/register_relative' : '/register_canbo')}
+          >
+            <Text style={styles.footerText}>
+              Chưa có tài khoản?{' '}
+              <Text style={[styles.link, { color: role === 'relative' ? '#FF5252' : COLORS.primary }]}>
+                Đăng ký ngay
+              </Text>
+            </Text>
+          </TouchableOpacity>
+          
         </View>
       </ScrollView>
 
@@ -182,6 +193,11 @@ const styles = StyleSheet.create({
   forgotPassText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
   loginButton: { backgroundColor: COLORS.primary, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   loginText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
+  
+  // Style định dạng dòng chữ footer liên kết đăng ký tài khoản mới tinh chỉnh gọn gàng
+  footerLink: { marginTop: 25, alignItems: 'center', marginBottom: 20 },
+  footerText: { color: COLORS.textGrey, fontSize: 14 },
+  link: { fontWeight: 'bold' }
 });
 
 export default LoginScreens;

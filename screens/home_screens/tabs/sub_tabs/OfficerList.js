@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
-import { Shield, MoreVertical, UserCheck } from 'lucide-react-native';
-import { COLORS } from '../../../../constants/theme';
+import { Shield, UserCheck } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomAlert from '../../../../components/CustomAlert';
+import { COLORS } from '../../../../constants/theme';
+
+// NHỚ ĐỔI ĐỊA CHỈ IP NÀY THÀNH IP CỦA BẠN
+const API_URL = 'http://192.168.1.100:5000'; 
 
 export default function OfficerList({ currentUser }) {
   const [pending, setPending] = useState([]);
@@ -17,12 +20,26 @@ export default function OfficerList({ currentUser }) {
 
   const fetchData = async () => {
     const userId = currentUser?.id || currentUser?._id;
-    if (!userId) return;
+    if (!userId) {
+        setLoading(false);
+        return;
+    }
     try {
-      const response = await fetch(`http://192.168.1.100:5000/api/auth/pending-officers/${userId}`);
-      const data = await response.json();
-      setPending(data.pending || []);
-      setApproved(data.approved || []);
+      const response = await fetch(`${API_URL}/api/auth/pending-officers/${userId}`);
+      const textData = await response.text(); 
+      
+      let data;
+      try {
+        data = JSON.parse(textData); // Ép kiểu an toàn
+      } catch (err) {
+        console.error("Lỗi parse JSON (API chưa khởi động):", textData);
+        return;
+      }
+
+      if (response.ok) {
+        setPending(data.pending || []);
+        setApproved(data.approved || []);
+      }
     } catch (error) { 
         console.error("Lỗi fetch:", error); 
     } finally { 
@@ -32,17 +49,29 @@ export default function OfficerList({ currentUser }) {
 
   const handleApprove = async (id) => {
     try {
-      const response = await fetch(`http://192.168.1.100:5000/api/auth/approve-officer/${id}`, { 
+      const response = await fetch(`${API_URL}/api/auth/approve-officer/${id}`, { 
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' }
       });
+      
+      const textData = await response.text();
+      let data;
+      try {
+          data = JSON.parse(textData);
+      } catch(err) {
+          console.error("Lỗi parse JSON duyệt tài khoản");
+          return;
+      }
+
       if (response.ok) {
           setAlertConfig({
             visible: true,
             type: 'success',
             message: "Đã phê duyệt tài khoản cán bộ thành công!"
           });
-          fetchData();
+          fetchData(); // Tải lại danh sách
+      } else {
+          setAlertConfig({ visible: true, type: 'error', message: data.message });
       }
     } catch (error) { 
         console.error("Lỗi phê duyệt:", error); 
@@ -67,16 +96,15 @@ export default function OfficerList({ currentUser }) {
           {isPending && <View style={styles.statusDot} />}
         </View>
 
-    <View style={styles.infoContent}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-        {/* Cấp bậc nhỏ mờ nằm cùng dòng với Tên */}
-        {item.rank && <Text style={styles.itemRankInline}>{item.rank} </Text>}
-        <Text style={styles.nameText}>{item.fullName}</Text>
-      </View>
-      <Text style={styles.subInfoText}>
-        {item.position || 'Cán bộ'} • {item.unitCode || item.unitPath}
-      </Text>
-    </View>
+        <View style={styles.infoContent}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+            {item.rank && <Text style={styles.itemRankInline}>{item.rank} </Text>}
+            <Text style={styles.nameText}>{item.fullName}</Text>
+          </View>
+          <Text style={styles.subInfoText}>
+            {item.position || 'Cán bộ'} • {item.unitCode || item.unitPath}
+          </Text>
+        </View>
 
         {isPending ? (
           <View style={styles.badgePending}>

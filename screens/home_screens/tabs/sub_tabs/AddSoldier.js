@@ -1,21 +1,22 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, SafeAreaView, Platform, Modal, FlatList } from 'react-native';
-import { ArrowLeft, Camera, Calendar, ChevronDown, Check, X } from 'lucide-react-native';
-import { COLORS } from '../../../../constants/theme';
-import CustomAlert from '../../../../components/CustomAlert';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Calendar, Camera, Check, ChevronDown, X } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import CustomAlert from '../../../../components/CustomAlert';
+import { COLORS } from '../../../../constants/theme';
 
 export default function AddSoldier() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const currentUser = params.currentUser ? JSON.parse(params.currentUser) : null;
+  
+  const [currentUser, setCurrentUser] = useState(null);
 
   const [form, setForm] = useState({
     fullName: '', 
     rank: 'Binh nhì', 
     position: 'Chiến sĩ', 
-    unitCode: currentUser?.unitCode || '', 
+    unitCode: '', 
     phoneRelative: '', 
     dob: new Date(), 
     enlistDate: new Date(), 
@@ -47,6 +48,23 @@ export default function AddSoldier() {
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: 100 }, (_, i) => currentYear - i); 
+  }, []);
+
+  // Tự động load User và điền tên Đơn vị vào form
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userStr = await AsyncStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          setCurrentUser(user);
+          setForm(prev => ({ ...prev, unitCode: user.unitCode }));
+        }
+      } catch (error) {
+        console.error("Lỗi lấy thông tin user:", error);
+      }
+    };
+    loadUser();
   }, []);
 
   const handleTextChange = (text, field) => {
@@ -131,23 +149,22 @@ export default function AddSoldier() {
       if (res.ok) {
         setAlertConfig({ visible: true, type: 'success', message: 'Thêm thành công!' });
         setTimeout(() => {
-        // CHỈ CẦN DÙNG router.back() để quay lại trang danh sách trước đó
             router.back(); 
         }, 1500); 
-    } else {
-      setAlertConfig({ visible: true, type: 'error', message: data.message });
-    }
-  } catch (err) {
-    setAlertConfig({ visible: true, type: 'error', message: 'Lỗi kết nối máy chủ' });
-  } finally { setLoading(false); }
-};
+      } else {
+        setAlertConfig({ visible: true, type: 'error', message: data.message });
+      }
+    } catch (err) {
+      setAlertConfig({ visible: true, type: 'error', message: 'Lỗi kết nối máy chủ' });
+    } finally { setLoading(false); }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-    <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.back()}>
-        <ArrowLeft size={24} color="#333" />
-      </TouchableOpacity>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <ArrowLeft size={24} color="#333" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Thêm chiến sĩ mới</Text>
         <View style={{ width: 24 }} />
       </View>

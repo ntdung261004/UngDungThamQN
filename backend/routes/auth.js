@@ -31,130 +31,110 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// --- ĐĂNG NHẬP USER ---
+// --- ĐĂNG NHẬP ---
 router.post('/login', async (req, res) => {
     try {
-        const { rootCode, phone, password } = req.body;
-        const user = await User.findOne({ rootCode, phone });
-        if (!user) return res.status(400).json({ message: "Sai mã đơn vị hoặc SĐT" });
+        const { phone, password } = req.body;
+        const user = await User.findOne({ phone });
+        if (!user) return res.status(404).json({ message: "Không tìm thấy tài khoản với số điện thoại này." });
+        if (!user.isApproved) return res.status(403).json({ message: "Tài khoản của bạn đang chờ quản trị viên phê duyệt." });
 
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ message: "Mật khẩu không đúng" });
+        if (!isMatch) return res.status(400).json({ message: "Mật khẩu không chính xác." });
 
-        const token = jwt.sign({ id: user._id }, "secret", { expiresIn: '7d' });
-        res.json({
+        const token = jwt.sign(
+            { id: user._id, role: user.role, rootCode: user.rootCode }, 
+            "secret", // Đáng lẽ nên dùng process.env.JWT_SECRET
+            { expiresIn: '1d' }
+        );
+
+        res.status(200).json({ 
+            message: "Đăng nhập thành công!",
             token,
             user: {
-                id: user._id,
-                fullName: user.fullName,
-                role: user.role,
-                rootCode: user.rootCode,
-                unitCode: user.unitCode,
-                unitPath: user.unitPath,
-                rank: user.rank,
-                position: user.position,
-                isAdmin: user.isAdmin,
-                isApproved: user.isApproved,
-                isProfileUpdated: user.isProfileUpdated
+                id: user._id, fullName: user.fullName, phone: user.phone, role: user.role, 
+                rootCode: user.rootCode, unitCode: user.unitCode, unitPath: user.unitPath, 
+                isAdmin: user.isAdmin, rank: user.rank, position: user.position, 
+                avatar: user.avatar, isProfileUpdated: user.isProfileUpdated
             }
         });
-    } catch (err) { res.status(500).json({ message: "Lỗi Server" }); }
+    } catch (err) {
+        res.status(500).json({ message: "Lỗi hệ thống đăng nhập" });
+    }
 });
 
 // --- CẬP NHẬT HỒ SƠ ---
 router.put('/update-profile', async (req, res) => {
     try {
         const { userId, fullName, rank, position, unitCode } = req.body;
-
-        // Tìm User theo ID và cập nhật các trường thông tin
         const updatedUser = await User.findByIdAndUpdate(
             userId,
-            { 
-                fullName, 
-                rank, 
-                position, 
-                unitCode, 
-                isProfileUpdated: true // Đánh dấu là đã cập nhật
-            },
-            { new: true } // Tham số này để trả về dữ liệu user mới nhất sau khi sửa
+            { fullName, rank, position, unitCode, isProfileUpdated: true },
+            { new: true }
         );
-
-        if (!updatedUser) {
-            return res.status(404).json({ message: "Không tìm thấy người dùng" });
-        }
-
-        res.status(200).json({ 
-            message: "Cập nhật hồ sơ thành công", 
-            user: updatedUser 
-        });
+        if (!updatedUser) return res.status(404).json({ message: "Không tìm thấy người dùng" });
+        res.status(200).json({ message: "Cập nhật hồ sơ thành công", user: updatedUser });
     } catch (err) {
         console.error("Lỗi cập nhật profile:", err);
         res.status(500).json({ message: "Lỗi hệ thống khi cập nhật hồ sơ" });
     }
 });
 
-// --- API DANH SÁCH CÁN BỘ CHỜ DUYỆT (Sửa lỗi 404) ---
+// --- [MỚI] API LẤY DANH SÁCH CÁN BỘ (CHỜ DUYỆT & ĐÃ DUYỆT) ---
 router.get('/pending-officers/:userId', async (req, res) => {
     try {
         const currentUser = await User.findById(req.params.userId);
-        if (!currentUser) return res.status(404).json({ message: "Không tìm thấy người dùng quản lý" });
+        if (!currentUser) return res.status(404).json({ message: "Không tìm thấy người dùng" });
 
-        let filter = { 
-            rootCode: currentUser.rootCode, 
-            role: 'canbo', 
-            _id: { $ne: currentUser._id } 
-        };
+        // Lọc theo đơn vị của người quản lý (Chỉ lấy cán bộ, không lấy thân nhân)
+        let filter = { rootCode: currentUser.rootCode, role: 'canbo' };
+        
+        // Loại bỏ chính tài khoản của mình ra khỏi danh sách
+        filter._id = { $ne: currentUser._id }; 
 
         if (!currentUser.isAdmin) {
-            filter.unitPath = new RegExp(currentUser.unitPath, 'i'); 
+            filter.unitPath = new RegExp(currentUser.unitPath, 'i');
         }
 
+        // Tách làm 2 mảng
         const pending = await User.find({ ...filter, isApproved: false }).sort({ createdAt: -1 });
         const approved = await User.find({ ...filter, isApproved: true }).sort({ createdAt: -1 });
 
-        res.json({ pending, approved });
-    } catch (err) { 
-        res.status(500).json({ message: "Lỗi lấy danh sách cán bộ" }); 
+        res.status(200).json({ pending, approved });
+    } catch (err) {
+        console.error("Lỗi lấy danh sách cán bộ:", err);
+        res.status(500).json({ message: "Lỗi hệ thống lấy danh sách" });
     }
 });
 
-// --- API PHÊ DUYỆT CÁN BỘ ---
+// --- [MỚI] API PHÊ DUYỆT CÁN BỘ ---
 router.put('/approve-officer/:id', async (req, res) => {
     try {
-        await User.findByIdAndUpdate(req.params.id, { isApproved: true });
-        res.json({ message: "Phê duyệt thành công" });
-    } catch (err) { res.status(500).json({ message: "Lỗi phê duyệt" }); }
-});
-
-// --- SỐ LIỆU TỔNG QUAN ---
-router.get('/overview-stats/:userId', async (req, res) => {
-    try {
-        const currentUser = await User.findById(req.params.userId);
-        if (!currentUser) return res.status(404).json({ message: "Không tìm thấy user" });
-
-        let hierarchyFilter = { rootCode: currentUser.rootCode };
-        if (!currentUser.isAdmin) {
-            hierarchyFilter.unitPath = new RegExp(currentUser.unitPath, 'i');
+        const updatedUser = await User.findByIdAndUpdate(
+            req.params.id,
+            { isApproved: true },
+            { new: true }
+        );
+        if (!updatedUser) {
+            return res.status(404).json({ message: "Không tìm thấy tài khoản để phê duyệt" });
         }
-
-        const totalOfficers = await User.countDocuments({ ...hierarchyFilter, role: 'canbo', isApproved: true });
-        const totalRelatives = await User.countDocuments({ ...hierarchyFilter, role: 'relative' });
-        const pendingApprovals = await User.countDocuments({ ...hierarchyFilter, role: 'canbo', isApproved: false });
-        const totalSoldiers = await User.countDocuments({ ...hierarchyFilter, role: 'soldier' });
-
-        res.json({ totalOfficers, totalRelatives, totalSoldiers, pendingApprovals });
-    } catch (err) { res.status(500).json({ message: "Lỗi lấy số liệu" }); }
+        res.status(200).json({ message: "Phê duyệt thành công" });
+    } catch (err) {
+        console.error("Lỗi phê duyệt:", err);
+        res.status(500).json({ message: "Lỗi hệ thống khi phê duyệt" });
+    }
 });
 
+
 // =============================================================
-// PHẦN 2: QUẢN LÝ SOLDIER (CHIẾN SĨ)
+// PHẦN 2: QUẢN LÝ CHIẾN SĨ
 // =============================================================
 
+// --- API THÊM CHIẾN SĨ MỚI ---
 router.post('/soldiers', async (req, res) => {
     try {
         const { fullName, rank, position, unitCode, unitPath, rootCode, phoneRelative, dob, enlistDate, address, avatar, createdBy } = req.body;
 
-        // BẮT LỖI: Kiểm tra SĐT người nhà đã tồn tại trong bảng User chưa
         const existingUser = await User.findOne({ phone: phoneRelative });
         if (existingUser) {
             return res.status(400).json({ 
@@ -184,10 +164,83 @@ router.get('/soldiers/:userId', async (req, res) => {
             filter.unitPath = new RegExp(currentUser.unitPath, 'i');
         }
 
-        const soldiers = await Soldier.find(filter).sort({ createdAt: -1 });
-        res.json({ soldiers });
+        let soldiers = await Soldier.find(filter).sort({ createdAt: -1 });
+
+        const formattedSoldiers = await Promise.all(soldiers.map(async (soldier) => {
+            const relative = await User.findOne({ phone: soldier.phoneRelative, role: 'relative' });
+            return { ...soldier._doc, isRelativeRegistered: !!relative };
+        }));
+
+        res.status(200).json({ soldiers: formattedSoldiers });
     } catch (err) {
-        res.status(500).json({ message: "Lỗi lấy danh sách" });
+        res.status(500).json({ message: "Lỗi lấy danh sách chiến sĩ" });
+    }
+});
+
+// --- API CẬP NHẬT CHIẾN SĨ ---
+router.put('/soldiers/:id', async (req, res) => {
+    try {
+        const updatedSoldier = await Soldier.findByIdAndUpdate(
+            req.params.id,
+            { $set: req.body },
+            { new: true } 
+        );
+        if (!updatedSoldier) {
+            return res.status(404).json({ message: "Không tìm thấy chiến sĩ để cập nhật" });
+        }
+        res.status(200).json({ message: "Cập nhật thành công", soldier: updatedSoldier });
+    } catch (err) {
+        console.error("Lỗi cập nhật chiến sĩ:", err);
+        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
+    }
+});
+
+// --- API XÓA CHIẾN SĨ ---
+router.delete('/soldiers/:id', async (req, res) => {
+    try {
+        const deletedSoldier = await Soldier.findByIdAndDelete(req.params.id);
+        if (!deletedSoldier) {
+            return res.status(404).json({ message: "Không tìm thấy chiến sĩ để xóa" });
+        }
+        res.status(200).json({ message: "Xóa chiến sĩ thành công" });
+    } catch (err) {
+        console.error("Lỗi xóa chiến sĩ:", err);
+        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
+    }
+});
+
+
+// =============================================================
+// PHẦN 3: THỐNG KÊ (OVERVIEW STATS)
+// =============================================================
+
+// --- API TỔNG QUAN SỐ LIỆU ---
+router.get('/overview-stats/:userId', async (req, res) => {
+    try {
+        const currentUser = await User.findById(req.params.userId);
+        if (!currentUser) return res.status(404).json({ message: "Không tìm thấy User" });
+
+        let filter = { rootCode: currentUser.rootCode };
+        if (!currentUser.isAdmin) {
+            filter.unitPath = new RegExp(currentUser.unitPath, 'i');
+        }
+
+        const totalSoldiers = await Soldier.countDocuments(filter);
+        const totalOfficers = await User.countDocuments({ ...filter, role: 'canbo' });
+        const pendingApprovals = await User.countDocuments({ ...filter, role: 'canbo', isApproved: false });
+
+        const soldiers = await Soldier.find(filter).select('phoneRelative');
+        const phoneList = soldiers.map(s => s.phoneRelative).filter(p => p);
+        const totalRelatives = await User.countDocuments({ phone: { $in: phoneList }, role: 'relative' });
+
+        res.status(200).json({
+            totalSoldiers,
+            totalOfficers,
+            pendingApprovals,
+            totalRelatives
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Lỗi hệ thống: " + err.message });
     }
 });
 

@@ -1,20 +1,18 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
-import { Smartphone, Lock, ChevronLeft, ShieldAlert, HelpCircle } from 'lucide-react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-// Import AsyncStorage để lưu trạng thái đăng nhập
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ChevronLeft, HelpCircle, Lock, ShieldAlert, Smartphone } from 'lucide-react-native';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-// Import các thành phần tùy chỉnh
-import CustomInput from '../../components/CustomInput';
 import CustomAlert from '../../components/CustomAlert';
+import CustomInput from '../../components/CustomInput';
 import { COLORS } from '../../constants/theme';
 
 const LoginScreens = () => {
   const router = useRouter();
+  // Lấy role từ màn hình trước truyền sang (VD: 'relative' hoặc 'canbo')
   const { role } = useLocalSearchParams(); 
 
-  // State quản lý dữ liệu
   const [rootCode, setRootCode] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -27,80 +25,109 @@ const LoginScreens = () => {
   });
 
   const handleLogin = async () => {
-    if (!rootCode || !phone || !password) {
-      setAlertConfig({ 
-        visible: true, 
-        type: 'error', 
-        message: "Vui lòng nhập đầy đủ Key đơn vị, SĐT và mật khẩu", 
-        autoClose: false 
-      });
-      return;
+    // 1. KIỂM TRA LỖI TÙY THEO VAI TRÒ
+    if (role === 'relative') {
+      // Nếu là Thân nhân: Chỉ cần SĐT và Mật khẩu
+      if (!phone || !password) {
+        setAlertConfig({ 
+          visible: true, 
+          type: 'error', 
+          message: "Vui lòng nhập SĐT và mật khẩu", 
+          autoClose: false 
+        });
+        return;
+      }
+    } else {
+      // Nếu là Cán bộ: Bắt buộc cả 3 trường
+      if (!rootCode || !phone || !password) {
+        setAlertConfig({ 
+          visible: true, 
+          type: 'error', 
+          message: "Vui lòng nhập đầy đủ Key đơn vị, SĐT và mật khẩu", 
+          autoClose: false 
+        });
+        return;
+      }
     }
 
     try {
-      const response = await fetch('http://192.168.1.100:5000/api/auth/login', {
+      // NHỚ ĐỔI ĐỊA CHỈ IP NÀY THÀNH IP CỦA BẠN
+      const response = await fetch(`http://192.168.1.100:5000/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rootCode, phone, password }),
+        // API hiện tại chỉ cần gửi phone và password lên Backend
+        body: JSON.stringify({ phone, password }) 
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // QUAN TRỌNG: Lưu thông tin user và token vào máy để app/home.js sử dụng
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        // Lưu token và thông tin user vào AsyncStorage
         await AsyncStorage.setItem('token', data.token);
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
 
         setAlertConfig({ 
-            visible: true, 
-            type: 'success', 
-            message: "Đăng nhập thành công!", 
-            autoClose: true 
+          visible: true, 
+          type: 'success', 
+          message: "Đăng nhập thành công!", 
+          autoClose: true 
         });
 
+        // Chuyển hướng theo role
         setTimeout(() => {
-          // Điều hướng về /home (File app/home.js sẽ tự check isApproved)
-          router.replace('/home');
+          if (data.user.role === 'relative') {
+            router.push('/home'); // Vào thẳng app của thân nhân
+          } else {
+            router.push('/home'); // Vào thẳng app của cán bộ
+          }
         }, 1500);
+
       } else {
         setAlertConfig({ 
-            visible: true, 
-            type: 'error', 
-            message: data.message || "Thông tin không chính xác", 
-            autoClose: false 
+          visible: true, 
+          type: 'error', 
+          message: data.message, 
+          autoClose: false 
         });
       }
     } catch (error) {
+      console.error("Lỗi đăng nhập:", error);
       setAlertConfig({ 
         visible: true, 
         type: 'error', 
-        message: "Lỗi kết nối Server! Vui lòng kiểm tra lại.", 
+        message: "Không thể kết nối đến máy chủ", 
         autoClose: false 
       });
     }
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
-          <ChevronLeft size={28} color={COLORS.textDark} />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <ChevronLeft size={30} color={COLORS.textDark} />
         </TouchableOpacity>
 
         <Text style={styles.title}>Đăng nhập</Text>
         <Text style={styles.subtitle}>
-          Hệ thống {role === 'canbo' ? 'Cán bộ quản lý' : 'Thân nhân quân nhân'}
+          {role === 'relative' ? "Dành cho Thân nhân chiến sĩ" : "Dành cho Cán bộ đơn vị"}
         </Text>
 
         <View style={styles.form}>
-          {/* ĐỔI NHÃN THEO YÊU CẦU MỚI */}
-          <Text style={styles.label}>Key đơn vị cung cấp</Text>
-          <CustomInput 
-            icon={ShieldAlert} 
-            placeholder="Ví dụ: D6E5F5QK7" 
-            value={rootCode}
-            onChangeText={setRootCode}
-          />
+          
+          {/* 2. ĐIỀU KIỆN HIỂN THỊ: Chỉ hiện Mã đơn vị khi KHÔNG phải là Thân nhân */}
+          {role !== 'relative' && (
+            <View>
+              <Text style={styles.label}>Mã định danh đơn vị (*)</Text>
+              <CustomInput 
+                icon={ShieldAlert} 
+                placeholder="VD: d6e5f5qk7" 
+                value={rootCode}
+                onChangeText={setRootCode}
+              />
+            </View>
+          )}
 
           <Text style={styles.label}>Số điện thoại</Text>
           <CustomInput 
@@ -115,33 +142,20 @@ const LoginScreens = () => {
           <CustomInput 
             icon={Lock} 
             placeholder="Nhập mật khẩu" 
-            secureTextEntry={true}
+            secureTextEntry={true} 
             value={password}
             onChangeText={setPassword}
           />
 
-          <TouchableOpacity 
-            style={styles.forgotPassContainer} 
-            onPress={() => router.push('/forgot_password')}
-          >
-            <HelpCircle size={16} color={COLORS.primary} />
-            <Text style={styles.forgotPassText}> Quên mật khẩu?</Text>
+          <TouchableOpacity style={styles.forgotPassContainer} onPress={() => router.push('/forgot_password')}>
+            <HelpCircle size={16} color={COLORS.primary} style={{ marginRight: 5 }}/>
+            <Text style={styles.forgotPassText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin} activeOpacity={0.8}>
-            <Text style={styles.loginText}>Vào hệ thống</Text>
+          <TouchableOpacity style={styles.loginButton} activeOpacity={0.8} onPress={handleLogin}>
+            <Text style={styles.loginText}>ĐĂNG NHẬP</Text>
           </TouchableOpacity>
-
-          <View style={styles.footerLink}>
-            <Text style={styles.noAccount}>Chưa có tài khoản? </Text>
-            <TouchableOpacity 
-              onPress={() => role === 'canbo' 
-                ? router.push('/register_canbo') 
-                : router.push('/register_relative')}
-            >
-              <Text style={styles.linkText}>Đăng ký ngay</Text>
-            </TouchableOpacity>
-          </View>
+          
         </View>
       </ScrollView>
 
@@ -152,7 +166,7 @@ const LoginScreens = () => {
         autoClose={alertConfig.autoClose}
         onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -168,9 +182,6 @@ const styles = StyleSheet.create({
   forgotPassText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
   loginButton: { backgroundColor: COLORS.primary, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   loginText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
-  footerLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 35 },
-  noAccount: { color: COLORS.textGrey, fontSize: 14 },
-  linkText: { color: COLORS.primary, fontSize: 14, fontWeight: 'bold' }
 });
 
 export default LoginScreens;

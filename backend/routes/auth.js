@@ -55,7 +55,10 @@ router.post('/login', async (req, res) => {
                 id: user._id, fullName: user.fullName, phone: user.phone, role: user.role, 
                 rootCode: user.rootCode, unitCode: user.unitCode, unitPath: user.unitPath, 
                 isAdmin: user.isAdmin, rank: user.rank, position: user.position, 
-                avatar: user.avatar, isProfileUpdated: user.isProfileUpdated
+                avatar: user.avatar, isProfileUpdated: user.isProfileUpdated,
+                // BỔ SUNG 2 DÒNG DƯỚI ĐÂY ĐỂ TRUYỀN DATA XUỐNG CHO THÂN NHÂN
+                soldierId: user.soldierId,
+                relationship: user.relationship
             }
         });
     } catch (err) {
@@ -316,6 +319,20 @@ router.put('/update-relative-profile', async (req, res) => {
         res.status(200).json({ message: "Cập nhật hồ sơ thành công", user: updatedUser });
     } catch (err) {
         res.status(500).json({ message: "Lỗi hệ thống khi cập nhật hồ sơ" });
+    }
+});
+
+// --- [MỚI BỔ SUNG] API LẤY THÔNG TIN CHIẾN SĨ DÀNH CHO THÂN NHÂN ---
+router.get('/soldier-info/:soldierId', async (req, res) => {
+    try {
+        const soldier = await Soldier.findById(req.params.soldierId);
+        if (!soldier) {
+            return res.status(404).json({ message: "Không tìm thấy thông tin chiến sĩ tương ứng" });
+        }
+        res.status(200).json({ soldier });
+    } catch (err) {
+        console.error("Lỗi lấy thông tin chiến sĩ:", err);
+        res.status(500).json({ message: "Lỗi hệ thống lấy thông tin chiến sĩ" });
     }
 });
 
